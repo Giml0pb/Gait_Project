@@ -1,1 +1,13 @@
-GaitData.zip
+# virtual env
+.venv/
+
+# caches
+.ruff_cache/
+__pycache__/
+
+# data
+data/
+*.zip
+
+# metadata
+*.egg-info/
