@@ -1,0 +1,18 @@
+[project]
+name = "gait-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.4.2",
+    "pandas>=3.0.0",
+    "scipy>=1.17.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "ruff>=0.15.1",
+]
