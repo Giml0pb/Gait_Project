@@ -10,8 +10,5 @@ data/raw/
 data/interim/
 data/processed/
 
-
-
-
 # metadata
 *.egg-info/
