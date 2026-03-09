@@ -1,1 +1,69 @@
-GaitData.zip
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Data (not in repo)
+data/raw/
+data/interim/
+data/processed/
+
+# Outputs (local results)
+outputs/
+outputs_temp/
+
+# Notebooks (exploratory)
+notebooks/
+*.ipynb
+.ipynb_checkpoints/
+
+# Development/Internal docs (not for public)
+Check_*.md
+DIAGNOSTICO_*.md
+Revision_*.md
+Fase*.md
+Mejoras*.md
+Extra*.md
+Descripcion_*.md
+INFRA.md
+PHASE*_CRITICAL_ANALYSIS.md
+PHASE*_CORRECTIONS_SUMMARY.md
+PHASE*_VERIFICATION.md
+PIPELINE_COMPLETE_VALIDATION.md
+DELIVERABLES.md
+FUTURE_PHASES.md
+QUICKSTART.md
+Informe/
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Development scripts (test/validation/diagnostic - not for public)
+scripts/test_*.py
+scripts/validate_*.py
+scripts/verify_*.py
+scripts/diagnose_*.py
+scripts/compare_before_after_correction.py
+scripts/reprocess_with_temporal_metrics.py
+
+# Editor configs (optional - uncomment if needed)
+# .vscode/
+# .idea/
