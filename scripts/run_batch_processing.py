@@ -304,15 +304,18 @@ def process_single_trial(trial_info: TrialInfo, base_path: Path) -> Dict:
         ),
         "stride_time_left_s": round(metrics_p2_left["stride_time_s"], 3),
         "stride_time_right_s": round(metrics_p2_right["stride_time_s"], 3),
-        # Phase 3: Synchronization (3 decimals for PLV, 1 for angles)
+        # Phase 3: Synchronization (3 decimals for PLV, 1 for angles, 3 for circular_std)
         "plv": round(metrics_p3["plv"], 3),
         "circular_variance": round(metrics_p3["circular_variance"], 3),
+        "circular_std": round(metrics_p3["circular_std"], 3),
         "mean_phase_diff_deg": round(metrics_p3["mean_phase_diff"] * 180 / 3.14159, 1),
         "anti_phase_error_deg": round(
             metrics_p3["anti_phase_error"] * 180 / 3.14159, 1
         ),
+        # Phase 3: Frequency metrics (3 decimals for Hz, 4 for ratios)
         "freq_left": round(metrics_p3["freq_left"], 3),
         "freq_right": round(metrics_p3["freq_right"], 3),
+        "freq_diff": round(metrics_p3["freq_diff"], 3),
         "freq_ratio": round(metrics_p3["freq_ratio"], 4),
         "frequency_match_flag": metrics_p3["frequency_match_flag"],
         # Phase 3: Temporal asymmetry metrics (3 decimals for seconds, 1 for percentage)
@@ -324,6 +327,9 @@ def process_single_trial(trial_info: TrialInfo, base_path: Path) -> Dict:
         "plv_std_windowed": round(metrics_p3["plv_std_windowed"], 4),
         "plv_trend": round(metrics_p3["plv_trend"], 6),
         "n_windows": metrics_p3["n_windows"],
+        # Phase 3: Validity metrics
+        "valid_samples_sync": metrics_p3["valid_samples_sync"],
+        "valid_fraction_sync": round(metrics_p3["valid_fraction_sync"], 3),
     }
 
     return result

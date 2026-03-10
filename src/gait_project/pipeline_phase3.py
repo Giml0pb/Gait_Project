@@ -162,6 +162,8 @@ class Phase3Pipeline:
             self.bandwidth,
             self.buffer_time,
         )
+        # Propagate generate_figures setting
+        self.phase2_pipeline.generate_figures = self.generate_figures
 
         # Process left foot
         print("   Processing left foot...")

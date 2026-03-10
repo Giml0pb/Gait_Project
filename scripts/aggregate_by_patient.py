@@ -66,6 +66,62 @@ KEY_METRICS_FOR_STD = [
 ]
 
 # ============================================================================
+# ROUNDING RULES (same as batch processing for consistency)
+# ============================================================================
+
+ROUNDING_RULES = {
+    # Frequencies: 3 decimals
+    "f0_hz": 3,
+    "mean_inst_freq_left": 3,
+    "mean_inst_freq_right": 3,
+    "freq_left": 3,
+    "freq_right": 3,
+    "freq_diff": 3,
+    # SNR: 2 decimals
+    "spectral_snr": 2,
+    # Coefficients of variation: 4 decimals
+    "cv_inst_freq_left": 4,
+    "cv_inst_freq_right": 4,
+    "freq_ratio": 4,
+    # Fractions/PLV: 3 decimals
+    "plv": 3,
+    "plv_mean_windowed": 3,
+    "valid_fraction_left": 3,
+    "valid_fraction_right": 3,
+    "valid_fraction_sync": 3,
+    "circular_variance": 3,
+    "circular_std": 3,
+    # Angles: 1 decimal
+    "mean_phase_diff_deg": 1,
+    "anti_phase_error_deg": 1,
+    # Cadence: 1 decimal
+    "cadence_steps_per_min_left": 1,
+    "cadence_steps_per_min_right": 1,
+    # Stride time: 3 decimals
+    "stride_time_left_s": 3,
+    "stride_time_right_s": 3,
+    "stride_time_asymmetry_s": 3,
+    "stride_time_asymmetry_pct": 1,
+    # Phase slip rate: 2 decimals
+    "phase_slip_rate": 2,
+    # PLV temporal std: 4 decimals
+    "plv_std_windowed": 4,
+    # PLV trend: 6 decimals
+    "plv_trend": 6,
+    # Std metrics: 4 decimals (variability metrics)
+    "plv_std": 4,
+    "anti_phase_error_deg_std": 4,
+    "phase_slip_rate_std": 4,
+    "plv_mean_windowed_std": 4,
+    "plv_std_windowed_std": 4,
+    "mean_inst_freq_left_std": 4,
+    "mean_inst_freq_right_std": 4,
+    "cv_inst_freq_left_std": 4,
+    "cv_inst_freq_right_std": 4,
+}
+
+
+# ============================================================================
 # AGGREGATION FUNCTIONS
 # ============================================================================
 
@@ -130,6 +186,11 @@ def aggregate_by_patient(df: pd.DataFrame) -> pd.DataFrame:
 
     # Create DataFrame
     df_agg = pd.DataFrame(aggregated_rows)
+
+    # Apply rounding rules
+    for col, decimals in ROUNDING_RULES.items():
+        if col in df_agg.columns:
+            df_agg[col] = df_agg[col].round(decimals)
 
     return df_agg
 
