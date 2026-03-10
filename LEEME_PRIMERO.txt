@@ -40,27 +40,6 @@ DONDE ESTAN LOS RESULTADOS:
 
 ================================================================================
 
-PROBLEMAS COMUNES:
-
-  "Docker no esta instalado"
-     → Instalar Docker Desktop y reiniciar
-
-  "No se encuentra la carpeta de datos"
-     → Verificar que existe: data\raw\dataset\data\healthy\
-
-  "Error al construir la imagen"
-     → Verificar conexion a Internet y espacio en disco (5 GB libres)
-
-================================================================================
-
-SOPORTE:
-
-  Para mas informacion, consultar:
-  - INSTRUCCIONES_DOCKER.md (guia completa con screenshots)
-  - README.md (documentacion tecnica)
-
-================================================================================
-
 Version: 1.0
 Fecha: 2026-03-10
 Repositorio: https://github.com/Giml0pb/Gait_Project
