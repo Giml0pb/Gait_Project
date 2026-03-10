@@ -1,267 +1,123 @@
-# Gait Analysis Pipeline - Sistema de Análisis de Marcha
+# Gait Analysis Pipeline
 
-Sistema automatizado para análisis de coordinación bilateral en señales de marcha usando sincronización de fase.
+Bilateral gait coordination analysis pipeline using phase synchronization.
 
-## Requisitos del Sistema
+---
 
-- **Python 3.11 o superior**
-- **Sistema operativo**: Linux, macOS, o Windows
-- **Espacio en disco**: Mínimo 500 MB libres
+## Quick Start (3 steps)
 
-## Instalación Rápida (3 pasos)
+### 1. Install Docker Desktop
+Download and install from: https://www.docker.com/products/docker-desktop
 
-### Paso 1: Instalar uv (gestor de paquetes)
+### 2. Prepare data
+Place your data following this structure:
+```
+Gait_Project/data/raw/dataset/data/
+├── healthy/
+├── neuro/
+└── ortho/
+```
 
-**Linux/macOS:**
+### 3. Run
+- **Windows**: Double-click `EJECUTAR.bat`
+- **Linux/Mac**: `./ejecutar.sh` (coming soon)
+
+The script offers 4 processing options:
+- Option 1: 1 trial (10 seconds) - for testing
+- Option 2: 8 trials/group (5 minutes)
+- Option 3: 20 trials/group (15 minutes)
+- Option 4: All trials (2 hours)
+
+### Results
+- **Figures**: `outputs/figures/`
+- **Metrics**: `outputs/tables/`
+
+---
+
+## Key Metrics
+
+- **PLV** (Phase Locking Value): 0-1, higher = better synchronization
+- **Anti-phase error**: 0-180°, lower = better coordination
+- **Phase slip rate**: slips/minute, lower = more stable
+- **Cadence**: steps/minute per foot
+- **Stride time**: stride duration in seconds
+
+**Typical values** (987 trials):
+- PLV: 0.96 ± 0.14
+- Anti-phase error: 13° ± 25°
+- Phase slip rate: 0.8 ± 3.1 slips/min
+
+---
+
+## Technical Documentation
+
+### Scientific Pipeline (3 phases)
+
+**Phase 1: Spectral Analysis**
+- Identifies dominant frequency (f₀) via FFT
+- Output: f₀ and spectral SNR
+
+**Phase 2: Instantaneous Phase**
+- Bandpass filtering around f₀
+- Hilbert transform → analytic signal
+- Output: φ_L(t), φ_R(t) with quality validation
+
+**Phase 3: Bilateral Synchronization**
+- Analyzes inter-foot coordination
+- Static metrics: PLV, anti-phase error
+- Temporal metrics: phase slips, windowed PLV
+- Output: 19 synchronization metrics
+
+### Advanced Usage (without Docker)
+
+Requires Python 3.11+ and uv:
 ```bash
+# Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
-```
 
-**Windows (PowerShell):**
-```powershell
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-### Paso 2: Clonar el repositorio
-
-```bash
-git clone <repository-url>
-cd Gait_Project
-```
-
-### Paso 3: Listo!
-
-El sistema instalará automáticamente todas las dependencias en el primer uso.
-
-## Uso del Sistema
-
-### Opción 1: Procesamiento Individual (recomendado para exploración)
-
-Procesar un único trial para inspección detallada:
-
-```bash
+# Process single trial
 uv run python scripts/run_single_trial.py HS_1_1
-```
 
-Esto genera:
-- Figuras de diagnóstico en `outputs/figures/`
-- Métricas en `outputs/tables/`
-
-### Opción 2: Procesamiento en Lote
-
-**Procesar 8 trials por grupo (rápido, ~5 minutos):**
-```bash
-uv run python scripts/run_batch_processing.py
-```
-
-**Procesar 20 trials por grupo (completo, ~15 minutos):**
-```bash
+# Batch processing
 uv run python scripts/run_batch_processing.py --target 20
-```
 
-**Procesar TODOS los trials disponibles (~2 horas):**
-```bash
-uv run python scripts/run_batch_processing.py --all
-```
-
-**Procesar solo ciertos grupos:**
-```bash
-uv run python scripts/run_batch_processing.py --groups healthy neuro
-```
-
-### Opción 3: Agregación por Paciente
-
-Después del procesamiento en lote, agregar múltiples trials del mismo paciente:
-
-```bash
+# Patient-level aggregation
 uv run python scripts/aggregate_by_patient.py
 ```
 
-Esto genera `patient_aggregated_metrics.csv` (232 pacientes agregados desde 987 trials), reduciendo ruido intra-sujeto y proporcionando muestras independientes para análisis estadístico.
-
-### Opción 4: Análisis de Resultados
-
-Analizar métricas y comparar grupos (healthy, neuro, ortho):
-
-```bash
-uv run python scripts/analyze_metrics.py
-```
-
-Esto imprime estadísticas descriptivas y comparaciones entre grupos.
-
-## Scripts Avanzados (Procesamiento por Fases)
-
-Para usuarios que desean ejecutar fases individuales del pipeline:
-
-```bash
-# Ejecutar solo Fase 1 (Análisis Espectral)
-uv run python scripts/run_phase1.py <trial_id>
-
-# Ejecutar solo Fase 2 (Fase Instantánea)
-uv run python scripts/run_phase2.py <trial_id>
-
-# Ejecutar solo Fase 3 (Sincronización Bilateral)
-uv run python scripts/run_phase3.py <trial_id>
-```
-
-## Estructura de Salidas
+### Output Files
 
 ```
-outputs/
-├── figures/          # Visualizaciones (PNG)
-│   ├── *_phase1_*.png    # Análisis espectral
-│   ├── *_phase2_*.png    # Fase instantánea
-│   └── *_phase3_*.png    # Sincronización bilateral
-├── tables/           # Métricas (CSV)
-│   ├── master_metrics.csv              # ARCHIVO PRINCIPAL (987 trials)
-│   ├── patient_aggregated_metrics.csv  # Agregado por paciente (232 pacientes)
-│   ├── frequency_summary.csv           # Métricas Fase 1
-│   ├── phase_summary.csv               # Métricas Fase 2
-│   └── synchronization_summary.csv     # Métricas Fase 3
-└── reports/          # Resúmenes de procesamiento
-    └── batch_processing_summary.txt
+outputs/tables/
+├── master_metrics.csv              # 987 trials, 36 metrics
+├── patient_aggregated_metrics.csv  # 232 patients (averaged)
+├── frequency_summary.csv           # Phase 1 metrics
+├── phase_summary.csv               # Phase 2 metrics
+└── synchronization_summary.csv     # Phase 3 metrics
 ```
 
-## Métricas Computadas
+Use `patient_aggregated_metrics.csv` for statistical analysis (avoids pseudoreplication).
 
-El sistema calcula **36 métricas** organizadas en 3 fases del pipeline. Consultar `METRICS_REFERENCE.md` para detalles completos.
-
-### Fase 1: Análisis Espectral (2 métricas)
-
-- `f0_hz`: Frecuencia dominante de marcha (Hz)
-- `spectral_snr`: Relación señal-ruido espectral
-
-### Fase 2: Fase Instantánea (10 métricas, 5 por pie)
-
-- `mean_inst_freq_left/right`: Frecuencia instantánea media (Hz)
-- `cv_inst_freq_left/right`: Coeficiente de variación de frecuencia
-- `valid_fraction_left/right`: Fracción de muestras válidas
-- `cadence_steps_per_min_left/right`: Cadencia (pasos/minuto)
-- `stride_time_left/right_s`: Tiempo de zancada (segundos)
-
-### Fase 3: Sincronización Bilateral (19 métricas)
-
-**Sincronización estática:**
-- `plv`: Phase Locking Value [0-1] - sincronización global
-- `anti_phase_error_deg`: Error respecto a anti-fase ideal (0-180°)
-- `mean_phase_diff_deg`: Diferencia de fase media (grados)
-- `circular_variance`: Varianza circular de diferencia de fase
-- `circular_std`: Desviación estándar circular
-
-**Sincronización temporal (nuevas métricas):**
-- `phase_slip_rate`: Tasa de cambios abruptos de fase (slips/min)
-- `plv_mean_windowed`: PLV promedio en ventanas de 2s
-- `plv_std_windowed`: Desviación estándar de PLV en ventanas
-- `plv_trend`: Tendencia temporal de PLV (pendiente)
-- `n_windows`: Número de ventanas analizadas
-
-**Frecuencia y asimetría:**
-- `freq_left/right`: Frecuencia dominante por pie (Hz)
-- `freq_diff`: Diferencia de frecuencia entre pies (Hz)
-- `freq_ratio`: Ratio de frecuencias (relativo, %)
-- `frequency_match_flag`: ¿Frecuencias coinciden? (bool)
-- `stride_time_asymmetry_s`: Asimetría temporal absoluta (s)
-- `stride_time_asymmetry_pct`: Asimetría temporal relativa (%)
-
-**Validez:**
-- `valid_samples_sync`: Muestras válidas para sincronización
-- `valid_fraction_sync`: Fracción de muestras válidas [0-1]
-
-## Métricas Clave para Análisis
-
-Basado en poder discriminatorio (p-values del análisis de 232 pacientes):
-
-1. **`anti_phase_error_deg`** (p=0.008) - Mejor discriminador entre healthy/pathological
-2. **`plv`** (p=0.038) - Sincronización global significativa
-3. **`plv_mean_windowed`** (p=0.048) - Sincronización temporal significativa
-
-**Valores típicos** (N=987 trials):
-- PLV: 0.964 ± 0.144 (healthy: 0.973, pathological: 0.903)
-- Anti-phase error: 13.0° ± 25.4° (healthy: 5.3°, pathological: 15.5°)
-- Phase slip rate: 0.84 ± 3.11 slips/min (healthy: 0.59, pathological: 1.26)
-
-## Pipeline Científico
-
-El sistema implementa un pipeline de 3 fases basado en el modelo de osciladores acoplados para marcha humana:
-
-### Fase 1: Análisis Espectral
-Identifica la frecuencia dominante de marcha (f₀) mediante análisis de Fourier del giroscopio (LF_Gyr_Y o RF_Gyr_Y).
-
-**Entrada**: Señal gyroscope
-**Salida**: Frecuencia dominante (f₀) y SNR espectral
-
-### Fase 2: Extracción de Fase Instantánea
-Calcula la fase instantánea φ(t) para ambos pies mediante:
-1. Filtrado paso-banda alrededor de f₀ (±0.3 Hz)
-2. Transformada de Hilbert para señal analítica
-3. Extracción de fase con validación de calidad
-
-**Entrada**: Señal gyroscope + f₀
-**Salida**: Fase instantánea φ_L(t), φ_R(t) para ambos pies
-
-### Fase 3: Sincronización Bilateral
-Analiza la coordinación entre pies usando:
-- **PLV (Phase Locking Value)**: Sincronización global
-- **Anti-phase error**: Desviación de coordinación ideal (180°)
-- **Métricas temporales**: Estabilidad y cambios dinámicos de sincronización
-
-**Entrada**: Fases φ_L(t), φ_R(t)
-**Salida**: 19 métricas de coordinación bilateral
-
-## Agregación por Paciente
-
-El pipeline ofrece dos niveles de análisis:
-
-### Nivel Trial (master_metrics.csv)
-- **N = 987 trials**
-- Detalle trial-by-trial
-- Útil para: análisis individuales, estudios longitudinales, visualizaciones de casos
-
-### Nivel Paciente (patient_aggregated_metrics.csv)
-- **N = 232 pacientes** (promedio de 4.3 trials/paciente)
-- Métricas promediadas + variabilidad intra-sujeto (std)
-- Útil para: análisis estadístico entre grupos, evita pseudoreplicación
-
-**Recomendación**: Usar nivel paciente para análisis estadístico (comparaciones entre grupos, regresiones) y nivel trial para caracterización individual.
-
-## Solucion de Problemas
-
-**Problema**: "Command not found: uv"
-**Solución**: Reiniciar la terminal después de instalar uv
-
-**Problema**: "array must not contain infs or NaNs"
-**Solución**: Normal. El sistema automáticamente excluye trials con datos corruptos o insuficientes
-
-**Problema**: Procesamiento lento
-**Solución**: Reducir target: `--target 5` o `--groups healthy`
-
-**Problema**: No se generan figuras
-**Solución**: Verificar que `outputs/` tiene permisos de escritura
-
-## Validación del Sistema
-
-Para verificar que la instalación funciona correctamente:
-
-```bash
-uv run python scripts/run_single_trial.py HS_1_1
-```
-
-Si genera figuras en `outputs/figures/HS_1_1_phase*.png` y métricas en `outputs/tables/`, el sistema está funcionando correctamente.
-
-## Arquitectura del Código
+### Code Structure
 
 ```
 src/gait_project/
-├── core/           # Módulos centrales del pipeline
-│   ├── phase1.py       # Análisis espectral
-│   ├── phase2.py       # Fase instantánea
-│   └── phase3.py       # Sincronización bilateral
-├── io/             # Carga y gestión de datos
-│   └── load_data.py    # Carga de archivos CSV del dataset
-├── models/         # Validación de datos con Pydantic
-│   └── schemas.py      # Schemas para Phase1/2/3 inputs/outputs
-└── viz/            # Visualización de resultados
-    ├── phase1_viz.py   # Visualización espectral
-    ├── phase2_viz.py   # Visualización de fase
-    └── phase3_viz.py   # Visualización de sincronización
+├── io/                 # Data loading
+├── spectral/           # Phase 1: spectral analysis
+├── phase/              # Phase 2: instantaneous phase
+├── synchronization/    # Phase 3: bilateral synchronization
+├── validation/         # Pydantic schemas
+├── viz/                # Visualizations
+└── pipeline_*.py       # Complete pipelines
 ```
+
+### Discriminative Metrics
+
+Based on 232-patient analysis:
+1. **anti_phase_error_deg** (p=0.008) - Best discriminator
+2. **plv** (p=0.038) - Global synchronization
+3. **plv_mean_windowed** (p=0.048) - Temporal stability
+
+---
+
+**Repository**: https://github.com/Giml0pb/Gait_Project
