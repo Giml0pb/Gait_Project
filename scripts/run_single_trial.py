@@ -23,8 +23,8 @@ def main():
     if len(sys.argv) > 1:
         trial_name = sys.argv[1]
 
-    # Dataset path (adjust if needed)
-    base_path = "."
+    # Dataset path
+    base_path = "data/raw/dataset/data"
 
     print("=" * 80)
     print(f"RUNNING COMPLETE PIPELINE ON TRIAL: {trial_name}")
