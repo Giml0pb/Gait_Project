@@ -1,0 +1,52 @@
+# Excluir de la imagen Docker
+
+# Datos (se montan como volumen)
+data/
+outputs/
+
+# Documentacion interna
+*.md
+!README.md
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Notebooks
+notebooks/
+*.ipynb
+.ipynb_checkpoints/
+
+# Logs y temporales
+*.log
+*.tmp
+outputs_temp/
+
+# Scripts de desarrollo (ya excluidos por .gitignore)
+scripts/test_*.py
+scripts/validate_*.py
+scripts/verify_*.py
+scripts/diagnose_*.py
+scripts/compare_before_after_correction.py
+scripts/reprocess_with_temporal_metrics.py
+
+# Pre-commit
+.pre-commit-config.yaml

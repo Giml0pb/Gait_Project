@@ -1,0 +1,66 @@
+================================================================================
+  GAIT ANALYSIS PIPELINE - Sistema de Analisis de Marcha
+================================================================================
+
+INSTRUCCIONES RAPIDAS (3 PASOS):
+
+  1. Instalar Docker Desktop (SOLO UNA VEZ)
+     - Ir a: https://www.docker.com/products/docker-desktop
+     - Descargar e instalar
+     - Reiniciar el ordenador
+
+  2. Colocar los datos en la carpeta correcta:
+     Gait_Project\data\raw\dataset\data\
+        ├── healthy\
+        ├── neuro\
+        └── ortho\
+
+  3. Hacer doble clic en: EJECUTAR.bat
+     - Seleccionar opcion (recomendado: opcion 1 para probar)
+     - Esperar a que termine
+     - Ver resultados en: outputs\
+
+================================================================================
+
+ARCHIVOS IMPORTANTES:
+
+  - EJECUTAR.bat                 <- Hacer doble clic aqui para ejecutar
+  - INSTRUCCIONES_DOCKER.md      <- Guia completa paso a paso
+  - README.md                    <- Documentacion tecnica
+  - Dockerfile                   <- Configuracion Docker (no tocar)
+
+================================================================================
+
+DONDE ESTAN LOS RESULTADOS:
+
+  Despues de ejecutar, buscar en:
+
+  - outputs\figures\    <- Graficas PNG (visualizaciones)
+  - outputs\tables\     <- Metricas CSV (abrir con Excel)
+
+================================================================================
+
+PROBLEMAS COMUNES:
+
+  "Docker no esta instalado"
+     → Instalar Docker Desktop y reiniciar
+
+  "No se encuentra la carpeta de datos"
+     → Verificar que existe: data\raw\dataset\data\healthy\
+
+  "Error al construir la imagen"
+     → Verificar conexion a Internet y espacio en disco (5 GB libres)
+
+================================================================================
+
+SOPORTE:
+
+  Para mas informacion, consultar:
+  - INSTRUCCIONES_DOCKER.md (guia completa con screenshots)
+  - README.md (documentacion tecnica)
+
+================================================================================
+
+Version: 1.0
+Fecha: 2026-03-10
+Repositorio: https://github.com/Giml0pb/Gait_Project
