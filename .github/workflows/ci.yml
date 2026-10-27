@@ -1,0 +1,37 @@
+name: Pipeline checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.9.5'
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+      - run: uv build --wheel
+      - name: Run the dataset-free demo
+        if: matrix.python-version == '3.11'
+        run: uv run gait-lab demo --output-dir outputs/ci_demo
+      - uses: actions/upload-artifact@v4
+        if: matrix.python-version == '3.11'
+        with:
+          name: synthetic-demo
+          path: outputs/ci_demo/
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-python-${{ matrix.python-version }}
+          path: dist/*.whl
+          retention-days: 30

@@ -23,7 +23,7 @@ Usage:
     python scripts/run_batch_processing.py --groups healthy neuro
 
 Future extensions:
-- Add multiprocessing: modify process_all_trials() to use Pool
+- Add multiprocessing: modify process_until_target() to use Pool
 - Add caching: modify process_single_trial() to check cache
 - Add progress bar: wrap enumerate() with tqdm
 - Add more metadata: modify extract_metadata()
@@ -37,14 +37,21 @@ from dataclasses import dataclass
 import pandas as pd
 import json
 from datetime import datetime
+import hashlib
+from importlib.metadata import version
+import platform
+import subprocess
+import traceback
+import numpy as np
 
 # Add src to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 from gait_project.pipeline_phase1 import run_phase1_pipeline
-from gait_project.pipeline_phase2 import run_phase2_pipeline
-from gait_project.pipeline_phase3 import run_phase3_pipeline
+from gait_project.pipeline_phase3 import Phase3Pipeline
+from gait_project.io.results import upsert_csv, write_csv_atomic
+from gait_project.validation import validate_master_metrics
 
 
 # ============================================================================
@@ -52,7 +59,7 @@ from gait_project.pipeline_phase3 import run_phase3_pipeline
 # ============================================================================
 
 BASE_PATH = project_root / "data" / "raw" / "dataset" / "data"
-OUTPUT_DIR = project_root / "outputs"
+OUTPUT_DIR = project_root / "outputs" / "baseline_v2"
 
 # Incremental save: save every N trials
 SAVE_EVERY_N_TRIALS = 20
@@ -221,7 +228,9 @@ def extract_metadata(trial_info: TrialInfo) -> Dict:
 # ============================================================================
 
 
-def process_single_trial(trial_info: TrialInfo, base_path: Path) -> Dict:
+def process_single_trial(
+    trial_info: TrialInfo, base_path: Path, output_dir: Path = None
+) -> Dict:
     """
     Run complete pipeline (Phase 1, 2, 3) on a single trial.
 
@@ -240,98 +249,82 @@ def process_single_trial(trial_info: TrialInfo, base_path: Path) -> Dict:
         - Add metric validation
         - Add caching of intermediate results
     """
-    # Phase 1: Spectral analysis (left foot only - f0 is same for both)
+    output_dir = Path(output_dir) if output_dir is not None else OUTPUT_DIR
+    pipeline = Phase3Pipeline(str(base_path), str(output_dir))
+    pipeline.generate_figures = False
+    metrics_p3 = pipeline.run(trial_info.trial_name, SIGNAL_LEFT, SIGNAL_RIGHT)
+    metrics_p2_left, metrics_p2_right = (
+        pipeline.phase2_left.metrics,
+        pipeline.phase2_right.metrics,
+    )
     metrics_p1 = run_phase1_pipeline(
-        base_path=str(base_path),
-        trial_name=trial_info.trial_name,
-        signal_name=SIGNAL_LEFT,
-        output_dir=str(OUTPUT_DIR),
-        generate_figures=False,  # Disable figures for batch processing
-    )
-
-    # Phase 2: Instantaneous phase (both feet)
-    metrics_p2_left = run_phase2_pipeline(
-        base_path=str(base_path),
-        trial_name=trial_info.trial_name,
-        signal_name=SIGNAL_LEFT,
-        output_dir=str(OUTPUT_DIR),
-        generate_figures=False,  # Disable figures for batch processing
-    )
-
-    metrics_p2_right = run_phase2_pipeline(
-        base_path=str(base_path),
-        trial_name=trial_info.trial_name,
-        signal_name=SIGNAL_RIGHT,
-        output_dir=str(OUTPUT_DIR),
-        generate_figures=False,  # Disable figures for batch processing
-    )
-
-    # Phase 3: Synchronization
-    metrics_p3 = run_phase3_pipeline(
-        base_path=str(base_path),
-        trial_name=trial_info.trial_name,
-        signal_left=SIGNAL_LEFT,
-        signal_right=SIGNAL_RIGHT,
-        output_dir=str(OUTPUT_DIR),
-        generate_figures=False,  # Disable figures for batch processing
+        str(base_path),
+        trial_info.trial_name,
+        SIGNAL_LEFT,
+        output_dir=str(output_dir),
+        generate_figures=False,
     )
 
     # Extract metadata
     metadata = extract_metadata(trial_info)
 
-    # Consolidate - ONLY ESSENTIAL METRICS (with scientific rounding)
+    # Consolidate at full precision; rounding belongs in presentation.
     result = {
         # Identification
         **trial_info.to_dict(),
         # Metadata
         **metadata,
-        # Phase 1: Spectral (3 decimals for frequencies, 2 for SNR)
-        "f0_hz": round(metrics_p1["dominant_freq_hz"], 3),
-        "spectral_snr": round(metrics_p1["spectral_snr"], 2),
-        # Phase 2: Instantaneous phase (3 decimals for freq, 4 for CV as it's a ratio)
-        "mean_inst_freq_left": round(metrics_p2_left["mean_inst_freq_hz"], 3),
-        "mean_inst_freq_right": round(metrics_p2_right["mean_inst_freq_hz"], 3),
-        "cv_inst_freq_left": round(metrics_p2_left["cv_inst_freq"], 4),
-        "cv_inst_freq_right": round(metrics_p2_right["cv_inst_freq"], 4),
-        "valid_fraction_left": round(metrics_p2_left["valid_fraction"], 3),
-        "valid_fraction_right": round(metrics_p2_right["valid_fraction"], 3),
-        # Phase 2: Clinical temporal metrics (1 decimal for cadence, 3 for stride time)
-        "cadence_steps_per_min_left": round(
-            metrics_p2_left["cadence_steps_per_min"], 1
-        ),
-        "cadence_steps_per_min_right": round(
-            metrics_p2_right["cadence_steps_per_min"], 1
-        ),
-        "stride_time_left_s": round(metrics_p2_left["stride_time_s"], 3),
-        "stride_time_right_s": round(metrics_p2_right["stride_time_s"], 3),
-        # Phase 3: Synchronization (3 decimals for PLV, 1 for angles, 3 for circular_std)
-        "plv": round(metrics_p3["plv"], 3),
-        "circular_variance": round(metrics_p3["circular_variance"], 3),
-        "circular_std": round(metrics_p3["circular_std"], 3),
-        "mean_phase_diff_deg": round(metrics_p3["mean_phase_diff"] * 180 / 3.14159, 1),
-        "anti_phase_error_deg": round(
-            metrics_p3["anti_phase_error"] * 180 / 3.14159, 1
-        ),
-        # Phase 3: Frequency metrics (3 decimals for Hz, 4 for ratios)
-        "freq_left": round(metrics_p3["freq_left"], 3),
-        "freq_right": round(metrics_p3["freq_right"], 3),
-        "freq_diff": round(metrics_p3["freq_diff"], 3),
-        "freq_ratio": round(metrics_p3["freq_ratio"], 4),
+        # Phase 1: Spectral metrics
+        "f0_hz": metrics_p1["dominant_freq_hz"],
+        "spectral_snr": metrics_p1["spectral_snr"],
+        # Phase 2: Instantaneous phase
+        "mean_inst_freq_left": metrics_p2_left["mean_inst_freq_hz"],
+        "mean_inst_freq_right": metrics_p2_right["mean_inst_freq_hz"],
+        "cv_inst_freq_left": metrics_p2_left["cv_inst_freq"],
+        "cv_inst_freq_right": metrics_p2_right["cv_inst_freq"],
+        "valid_fraction_left": metrics_p2_left["valid_fraction"],
+        "valid_fraction_right": metrics_p2_right["valid_fraction"],
+        # Legacy spectral proxies: event-based cadence remains to be validated.
+        "cadence_steps_per_min_left": metrics_p2_left["cadence_steps_per_min"],
+        "cadence_steps_per_min_right": metrics_p2_right["cadence_steps_per_min"],
+        "stride_time_left_s": metrics_p2_left["stride_time_s"],
+        "stride_time_right_s": metrics_p2_right["stride_time_s"],
+        # Phase 3: Synchronization
+        "plv": metrics_p3["plv"],
+        "circular_variance": metrics_p3["circular_variance"],
+        "circular_std": metrics_p3["circular_std"],
+        "mean_phase_diff_deg": metrics_p3["mean_phase_diff"] * 180 / np.pi,
+        "anti_phase_error_deg": metrics_p3["anti_phase_error"] * 180 / np.pi,
+        # Phase 3: Frequency metrics
+        "freq_left": metrics_p3["freq_left"],
+        "freq_right": metrics_p3["freq_right"],
+        "freq_diff": metrics_p3["freq_diff"],
+        "freq_ratio": metrics_p3["freq_ratio"],
         "frequency_match_flag": metrics_p3["frequency_match_flag"],
-        # Phase 3: Temporal asymmetry metrics (3 decimals for seconds, 1 for percentage)
-        "stride_time_asymmetry_s": round(metrics_p3["stride_time_asymmetry_s"], 3),
-        "stride_time_asymmetry_pct": round(metrics_p3["stride_time_asymmetry_pct"], 1),
+        # Phase 3: Spectral period asymmetry
+        "stride_time_asymmetry_s": metrics_p3["stride_time_asymmetry_s"],
+        "stride_time_asymmetry_pct": metrics_p3["stride_time_asymmetry_pct"],
         # Phase 3: NEW Temporal synchronization metrics
-        "phase_slip_rate": round(metrics_p3["phase_slip_rate"], 2),
-        "plv_mean_windowed": round(metrics_p3["plv_mean_windowed"], 3),
-        "plv_std_windowed": round(metrics_p3["plv_std_windowed"], 4),
-        "plv_trend": round(metrics_p3["plv_trend"], 6),
+        "phase_slip_rate": metrics_p3["phase_slip_rate"],
+        "plv_mean_windowed": metrics_p3["plv_mean_windowed"],
+        "plv_std_windowed": metrics_p3["plv_std_windowed"],
+        "plv_trend": metrics_p3["plv_trend"],
         "n_windows": metrics_p3["n_windows"],
         # Phase 3: Validity metrics
         "valid_samples_sync": metrics_p3["valid_samples_sync"],
-        "valid_fraction_sync": round(metrics_p3["valid_fraction_sync"], 3),
+        "valid_fraction_sync": metrics_p3["valid_fraction_sync"],
     }
 
+    result["trimmed_leading_samples"] = pipeline.phase2_left.prepared.trimmed_leading
+    result["trimmed_trailing_samples"] = pipeline.phase2_left.prepared.trimmed_trailing
+    digest = hashlib.sha256()
+    for path in (
+        trial_info.trial_path / f"{trial_info.trial_name}_processed_data.txt",
+        trial_info.trial_path / f"{trial_info.trial_name}_meta.json",
+    ):
+        digest.update(path.read_bytes())
+    result["input_sha256"] = digest.hexdigest()
+    validate_master_metrics(result)
     return result
 
 
@@ -345,6 +338,7 @@ def process_until_target(
     base_path: Path,
     target_per_group: int = 8,
     groups_to_process: Optional[List[str]] = None,
+    output_dir: Path = None,
 ) -> Tuple[List[Dict], List[Dict]]:
     """
     Process trials until we have target number of successful trials per group.
@@ -364,6 +358,8 @@ def process_until_target(
         - Add progress estimation
         - Add resume from checkpoint
     """
+    output_dir = Path(output_dir) if output_dir is not None else OUTPUT_DIR
+    output_dir.joinpath("tables").mkdir(parents=True, exist_ok=True)
     results = []
     errors = []
 
@@ -381,7 +377,7 @@ def process_until_target(
         "ortho": [t for t in all_trials if t.group == "ortho"],
     }
 
-    master_csv = OUTPUT_DIR / "tables" / "master_metrics.csv"
+    master_csv = output_dir / "tables" / "master_metrics.csv"
     trial_counter = 0
 
     print(f"\nTarget: {target_per_group} successful trials per group")
@@ -393,9 +389,9 @@ def process_until_target(
 
     # Process each group until target is reached
     for group_name in groups_to_process:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"PROCESSING GROUP: {group_name.upper()}")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
 
         for trial_info in trials_by_group[group_name]:
             # Stop if we've reached the target for this group
@@ -412,7 +408,7 @@ def process_until_target(
 
             try:
                 # Process trial
-                result = process_single_trial(trial_info, base_path)
+                result = process_single_trial(trial_info, base_path, output_dir)
                 results.append(result)
                 success_count[group_name] += 1
                 print(f"  ✓ Success - PLV: {result['plv']:.3f}")
@@ -427,7 +423,9 @@ def process_until_target(
                     "trial": trial_info.trial_name,
                     "group": trial_info.group,
                     "pathology": trial_info.pathology,
-                    "error_message": str(e)[:200],  # Truncate long errors
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "traceback": traceback.format_exc(),
                 }
                 errors.append(error_info)
                 print(f"  ✗ Failed: {str(e)[:100]}")
@@ -460,15 +458,14 @@ def save_results_incremental(results: List[Dict], csv_path: Path, append: bool =
         - Add backup before overwrite
     """
     df_new = pd.DataFrame(results)
-
-    if append and csv_path.exists():
-        # Append to existing
-        df_existing = pd.read_csv(csv_path)
-        df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-        df_combined.to_csv(csv_path, index=False)
+    if df_new.empty:
+        return
+    if append:
+        upsert_csv(df_new, csv_path, ["subject", "trial"])
     else:
-        # Create new
-        df_new.to_csv(csv_path, index=False)
+        write_csv_atomic(
+            df_new.drop_duplicates(["subject", "trial"], keep="last"), csv_path
+        )
 
 
 def remove_duplicates_from_csv(csv_path: Path):
@@ -491,7 +488,7 @@ def remove_duplicates_from_csv(csv_path: Path):
     # Remove duplicates, keeping last occurrence
     df_clean = df.drop_duplicates(subset=["trial"], keep="last")
 
-    df_clean.to_csv(csv_path, index=False)
+    write_csv_atomic(df_clean, csv_path)
 
     removed = original_count - len(df_clean)
     if removed > 0:
@@ -505,15 +502,22 @@ def remove_duplicates_from_csv(csv_path: Path):
 
 def save_error_log(errors: List[Dict], output_dir: Path):
     """Save error log as CSV."""
-    if not errors:
-        return
-
     tables_dir = output_dir / "tables"
     tables_dir.mkdir(parents=True, exist_ok=True)
 
-    df_errors = pd.DataFrame(errors)
+    df_errors = pd.DataFrame(
+        errors,
+        columns=[
+            "trial",
+            "group",
+            "pathology",
+            "error_type",
+            "error_message",
+            "traceback",
+        ],
+    )
     error_path = tables_dir / "processing_errors.csv"
-    df_errors.to_csv(error_path, index=False)
+    write_csv_atomic(df_errors, error_path)
 
     print(f"\n✓ Error log saved: {error_path}")
 
@@ -556,9 +560,9 @@ def save_summary_report(
     lines.append("")
     lines.append(f"Total trials attempted: {total_attempted}")
     lines.append(
-        f"Successfully processed: {successful} ({successful/total_attempted*100:.1f}%)"
+        f"Successfully processed: {successful} ({successful / max(total_attempted, 1) * 100:.1f}%)"
     )
-    lines.append(f"Failed: {failed} ({failed/total_attempted*100:.1f}%)")
+    lines.append(f"Failed: {failed} ({failed / max(total_attempted, 1) * 100:.1f}%)")
     lines.append("")
     lines.append("Successful by group:")
     for group in sorted(success_by_group.keys()):
@@ -664,7 +668,17 @@ Examples:
         help="Groups to process (default: all groups)",
     )
 
-    return parser.parse_args()
+    parser.add_argument("--data-dir", type=Path, default=BASE_PATH, help="Dataset root")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=OUTPUT_DIR,
+        help="Directory for this baseline run",
+    )
+    args = parser.parse_args()
+    if args.target <= 0:
+        parser.error("--target must be positive")
+    return args
 
 
 # ============================================================================
@@ -676,6 +690,65 @@ def main():
     """Main batch processing workflow."""
     # Parse command-line arguments
     args = parse_args()
+    output_dir = args.output_dir.resolve()
+    base_path = args.data_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / "run_manifest.json"
+    if (
+        manifest_path.exists()
+        or (output_dir / "tables" / "master_metrics.csv").exists()
+    ):
+        print(
+            "ERROR: output directory already contains a run; select a new --output-dir"
+        )
+        return 1
+    sources = sorted(
+        [
+            *project_root.glob("src/**/*.py"),
+            *project_root.glob("scripts/*.py"),
+            project_root / "pyproject.toml",
+            project_root / "uv.lock",
+        ]
+    )
+    source_hashes = {
+        str(path.relative_to(project_root)): hashlib.sha256(
+            path.read_bytes()
+        ).hexdigest()
+        for path in sources
+    }
+
+    def git_value(*arguments):
+        process = subprocess.run(
+            ["git", *arguments], cwd=project_root, capture_output=True, text=True
+        )
+        return process.stdout.strip() if process.returncode == 0 else None
+
+    manifest = {
+        "pipeline_version": "0.2.0",
+        "status": "running",
+        "started_at": datetime.now().astimezone().isoformat(),
+        "git_commit": git_value("rev-parse", "HEAD"),
+        "git_status": git_value("status", "--short"),
+        "source_sha256": source_hashes,
+        "python": platform.python_version(),
+        "dependencies": {
+            name: version(name)
+            for name in ("numpy", "scipy", "pandas", "pydantic", "matplotlib")
+        },
+        "data_dir": str(base_path),
+        "parameters": {
+            "target": args.target,
+            "all": args.all,
+            "groups": args.groups,
+            "bandwidth_hz": 0.3,
+            "turn_buffer_s": 0.2,
+            "edge_exclusion_s": 1.0,
+            "window_s": 2.0,
+            "min_window_valid_fraction": 0.5,
+            "frequency_tolerance": 0.03,
+        },
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
     # Determine target
     if args.all:
@@ -695,24 +768,30 @@ def main():
 
     # Step 1: Scan dataset
     print("[1/5] Scanning dataset...")
-    all_trials = scan_dataset(BASE_PATH)
+    all_trials = scan_dataset(base_path)
     print(f"  Found {len(all_trials)} total trials")
 
     if len(all_trials) == 0:
         print("\nERROR: No trials found in dataset!")
-        print(f"Checked path: {BASE_PATH}")
-        return
+        print(f"Checked path: {base_path}")
+        manifest["status"] = "failed_no_data"
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+        return 1
 
     # Step 2: Process trials until target is reached
     print("\n[2/5] Processing trials...")
     print(f"  (Saving checkpoint every {SAVE_EVERY_N_TRIALS} trials)")
     results, errors = process_until_target(
-        all_trials, BASE_PATH, target_per_group=target, groups_to_process=groups
+        all_trials,
+        base_path,
+        target_per_group=target,
+        groups_to_process=groups,
+        output_dir=output_dir,
     )
 
     # Step 3: Final save and cleanup
     print("\n[3/5] Finalizing master CSV...")
-    master_csv = OUTPUT_DIR / "tables" / "master_metrics.csv"
+    master_csv = output_dir / "tables" / "master_metrics.csv"
 
     # Save any remaining results
     if results:
@@ -724,13 +803,47 @@ def main():
 
     # Step 4: Save error log
     print("\n[4/5] Saving error log...")
-    save_error_log(errors, OUTPUT_DIR)
+    save_error_log(errors, output_dir)
 
     # Step 5: Generate summary report
     print("\n[5/5] Generating summary report...")
     total_attempted = len(results) + len(errors)
-    save_summary_report(results, errors, total_attempted, OUTPUT_DIR)
+    save_summary_report(results, errors, total_attempted, output_dir)
 
+    audit_rows = []
+    for group in groups:
+        successes = sum(r["group"] == group for r in results)
+        failures = sum(r["group"] == group for r in errors)
+        audit_rows.append(
+            {
+                "group": group,
+                "available": sum(t.group == group for t in all_trials),
+                "attempted": successes + failures,
+                "successful": successes,
+                "failed": failures,
+            }
+        )
+    write_csv_atomic(
+        pd.DataFrame(audit_rows), output_dir / "tables" / "exclusions_by_group.csv"
+    )
+    if results:
+        from aggregate_by_patient import aggregate_by_patient, reorder_columns
+
+        participants = reorder_columns(aggregate_by_patient(pd.DataFrame(results)))
+        write_csv_atomic(
+            participants, output_dir / "tables" / "patient_aggregated_metrics.csv"
+        )
+    target_met = args.all or all(
+        sum(r["group"] == group for r in results) >= target for group in groups
+    )
+    manifest.update(
+        status="completed" if results and target_met else "failed_target_not_met",
+        finished_at=datetime.now().astimezone().isoformat(),
+        successful=len(results),
+        failed=len(errors),
+        exclusions_by_group=audit_rows,
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     print("\n" + "=" * 80)
     print("BATCH PROCESSING COMPLETE")
     print("=" * 80)
@@ -740,6 +853,8 @@ def main():
     print(f"Master CSV: {master_csv}")
     print()
 
+    return 0 if results and target_met else 1
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

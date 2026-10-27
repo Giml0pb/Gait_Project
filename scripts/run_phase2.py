@@ -84,7 +84,7 @@ def main():
         print(f"Mean amplitude:           {metrics['amplitude_mean']:.2f}")
         print(f"Std amplitude:            {metrics['amplitude_std']:.2f}")
         print(f"Number of cycles:         {metrics['num_cycles']:.1f}")
-        print(f"Freq coherence error:     {metrics['freq_coherence_error']*100:.1f}%")
+        print(f"Freq coherence error:     {metrics['freq_coherence_error'] * 100:.1f}%")
         print("-" * 50)
 
         # Quality assessment

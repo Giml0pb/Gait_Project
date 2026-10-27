@@ -74,7 +74,7 @@ def circular_variance(angles: np.ndarray) -> float:
     mean_z = np.mean(z)
 
     # Mean resultant length
-    R = np.abs(mean_z)
+    R = np.clip(np.abs(mean_z), 0.0, 1.0)
 
     # Circular variance
     V = 1.0 - R
@@ -101,7 +101,7 @@ def circular_std(angles: np.ndarray) -> float:
     z = np.exp(1j * angles)
 
     # Mean resultant length
-    R = np.abs(np.mean(z))
+    R = np.clip(np.abs(np.mean(z)), 0.0, 1.0)
 
     # Circular standard deviation
     # Note: R can be 0 for uniform distribution, handle this case

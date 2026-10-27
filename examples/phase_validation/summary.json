@@ -1,0 +1,34 @@
+{
+  "trials_prepared": 1356,
+  "trials_compared": 1356,
+  "participants": 260,
+  "participants_with_bilateral_scores": 259,
+  "errors": 0,
+  "symmetry_check": {
+    "max_observation_difference_under_pi_shift": 3.3306690738754696e-16,
+    "odd_harmonic_power_fraction": 0.0
+  },
+  "median_dominant_to_event_ratio": 2.0117187499999987,
+  "median_fundamental_to_event_ratio": 0.9996000000000003,
+  "weak_fundamental_feet": 2,
+  "participant_median_relative_phase_error_deg": {
+    "dominant_hilbert": 9.275779272497093,
+    "fundamental_hilbert": 8.887789822539975,
+    "harmonic_ekf": 13.593800199912527
+  },
+  "participant_median_event_f1": {
+    "dominant_hilbert": 0.6343536239894977,
+    "fundamental_hilbert": 0.9745212593313859,
+    "harmonic_ekf": 0.9624530075187969
+  },
+  "participant_median_matched_event_mae_s": {
+    "dominant_hilbert": 0.020877529344822357,
+    "fundamental_hilbert": 0.028920049141485115,
+    "harmonic_ekf": 0.02194013746835389
+  },
+  "scored_trials_by_method": {
+    "dominant_hilbert": 1354,
+    "fundamental_hilbert": 1354,
+    "harmonic_ekf": 1354
+  }
+}

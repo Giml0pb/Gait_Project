@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 REM ============================================================
 REM Script de ejecucion automatica para Windows
 REM Gait Analysis Pipeline - Docker
@@ -66,9 +67,16 @@ echo.
 echo   1. Procesar UN trial de ejemplo (rapido - 10 segundos)
 echo   2. Procesar 8 trials por grupo (medio - 5 minutos)
 echo   3. Procesar 20 trials por grupo (completo - 15 minutos)
-echo   4. Procesar TODOS los trials (987 trials - 2 horas)
+echo   4. Procesar TODOS los trials disponibles
 echo.
 set /p opcion="Ingrese el numero de opcion (1-4): "
+if not "%opcion%"=="1" if not "%opcion%"=="2" if not "%opcion%"=="3" if not "%opcion%"=="4" (
+    echo ERROR: Opcion no valida
+    pause
+    exit /b 1
+)
+set "run_name=run_%RANDOM%_%RANDOM%"
+set "run_dir=/app/outputs/%run_name%"
 
 echo.
 echo ====================================================
@@ -79,26 +87,30 @@ echo.
 if "%opcion%"=="1" (
     echo Procesando trial de ejemplo: HS_1_1
     echo.
-    docker run --rm -v "%cd%\data:/app/data" -v "%cd%\outputs:/app/outputs" gait-pipeline uv run python scripts/run_single_trial.py HS_1_1
+    docker run --rm -v "%cd%\data:/app/data:ro" -v "%cd%\outputs:/app/outputs" gait-pipeline uv run python scripts/run_single_trial.py HS_1_1 --output-dir "%run_dir%"
+    if errorlevel 1 goto error
 )
 
 if "%opcion%"=="2" (
     echo Procesando 8 trials por grupo (24 trials totales)
     echo.
-    docker run --rm -v "%cd%\data:/app/data" -v "%cd%\outputs:/app/outputs" gait-pipeline uv run python scripts/run_batch_processing.py
+    docker run --rm -v "%cd%\data:/app/data:ro" -v "%cd%\outputs:/app/outputs" gait-pipeline uv run python scripts/run_batch_processing.py --output-dir "%run_dir%"
+    if errorlevel 1 goto error
 )
 
 if "%opcion%"=="3" (
     echo Procesando 20 trials por grupo (60 trials totales)
     echo.
-    docker run --rm -v "%cd%\data:/app/data" -v "%cd%\outputs:/app/outputs" gait-pipeline uv run python scripts/run_batch_processing.py --target 20
+    docker run --rm -v "%cd%\data:/app/data:ro" -v "%cd%\outputs:/app/outputs" gait-pipeline uv run python scripts/run_batch_processing.py --target 20 --output-dir "%run_dir%"
+    if errorlevel 1 goto error
 )
 
 if "%opcion%"=="4" (
-    echo Procesando TODOS los trials (987 trials)
+    echo Procesando TODOS los trials disponibles
     echo ATENCION: Esto puede tardar 1-2 horas
     echo.
-    docker run --rm -v "%cd%\data:/app/data" -v "%cd%\outputs:/app/outputs" gait-pipeline uv run python scripts/run_batch_processing.py --all
+    docker run --rm -v "%cd%\data:/app/data:ro" -v "%cd%\outputs:/app/outputs" gait-pipeline uv run python scripts/run_batch_processing.py --all --output-dir "%run_dir%"
+    if errorlevel 1 goto error
 )
 
 echo.
@@ -107,9 +119,17 @@ echo   PROCESAMIENTO COMPLETADO
 echo ====================================================
 echo.
 echo Resultados guardados en:
-echo   - Graficas: %cd%\outputs\figures\
-echo   - Metricas: %cd%\outputs\tables\
+echo   - Carpeta de la ejecucion: %cd%\outputs\%run_name%\
+echo   - Graficas, si se solicitan: figures\
+echo   - Metricas: tables\
 echo.
 echo Puede abrir esas carpetas en el Explorador de archivos.
 echo.
 pause
+
+exit /b 0
+
+:error
+echo ERROR: El procesamiento no se ha completado. Revise el mensaje anterior.
+pause
+exit /b 1

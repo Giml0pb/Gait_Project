@@ -275,7 +275,7 @@ def plot_signal_vs_filtered(
     axes[1].set_xlabel("Time (s)")
     axes[1].set_ylabel("Angular Velocity (deg/s)")
     axes[1].set_title(
-        f"Narrowband Filtered [{f0-bandwidth:.2f} - {f0+bandwidth:.2f} Hz]"
+        f"Narrowband Filtered [{f0 - bandwidth:.2f} - {f0 + bandwidth:.2f} Hz]"
     )
     axes[1].grid(True, alpha=0.3)
 

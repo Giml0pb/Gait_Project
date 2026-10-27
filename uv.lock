@@ -197,8 +197,8 @@ wheels = [
 
 [[package]]
 name = "gait-project"
-version = "0.1.0"
-source = { virtual = "." }
+version = "0.3.0"
+source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },

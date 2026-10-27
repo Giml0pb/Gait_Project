@@ -34,11 +34,34 @@ def compute_psd(
     if noverlap is None:
         noverlap = nperseg // 2
 
+    data = np.asarray(data, dtype=float)
+    if data.ndim != 1 or len(data) < 4 or not np.isfinite(data).all():
+        raise ValueError(
+            "PSD requires a finite one-dimensional signal with at least four samples"
+        )
+    if not np.isfinite(fs) or fs <= 0:
+        raise ValueError("Sampling frequency must be positive and finite")
+    nperseg = min(nperseg, len(data))
+    noverlap = min(noverlap, nperseg - 1)
+
     freqs, psd = signal.welch(
         data, fs=fs, nperseg=nperseg, noverlap=noverlap, window=window
     )
 
     return freqs, psd
+
+
+def compute_segmented_psd(data, segments, fs, nperseg=256, noverlap=128):
+    """Average Welch estimates without allowing a window to cross a turn."""
+    nperseg = min(nperseg, *(len(data[segment]) for segment in segments))
+    noverlap = min(noverlap, nperseg - 1)
+    spectra, weights = [], []
+    for segment in segments:
+        part = data[segment]
+        freqs, psd = compute_psd(part, fs, nperseg, noverlap)
+        spectra.append(psd)
+        weights.append(1 + (len(part) - nperseg) // (nperseg - noverlap))
+    return freqs, np.average(spectra, axis=0, weights=weights)
 
 
 def compute_spectrogram(

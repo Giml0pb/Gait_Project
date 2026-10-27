@@ -5,10 +5,23 @@ Validates inputs and outputs of each pipeline phase to catch errors early
 and ensure data quality throughout the processing pipeline.
 """
 
-from pydantic import BaseModel, Field, field_validator
+import math
+
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
-class TrialMetadataSchema(BaseModel):
+class FiniteModel(BaseModel):
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+
+class TrialMetadataSchema(FiniteModel):
     """Validate trial metadata loaded from dataset."""
 
     subject: str = Field(..., min_length=1, description="Subject ID")
@@ -26,38 +39,35 @@ class TrialMetadataSchema(BaseModel):
             raise ValueError(f"U-turn start must be >= 0, got {v[0]}")
         return v
 
-    model_config = {"frozen": True}
 
-
-class Phase1MetricsSchema(BaseModel):
+class Phase1MetricsSchema(FiniteModel):
     """Validate Phase 1 (spectral analysis) output metrics."""
 
     dominant_freq_hz: float = Field(
-        ..., gt=0.5, lt=3.0, description="Dominant frequency (0.5-3.0 Hz)"
+        ..., ge=0.5, le=3.0, description="Dominant frequency (0.5-3.0 Hz)"
     )
     spectral_snr: float = Field(..., gt=0, description="Spectral SNR (positive)")
     peak_power: float = Field(..., gt=0, description="Peak power (positive)")
-    peak_width_hz: float = Field(..., gt=0, lt=2.0, description="Peak width (0-2 Hz)")
+    peak_width_hz: float = Field(..., gt=0, description="Spectral peak width (Hz)")
     energy_ratio: float = Field(..., ge=0, le=1, description="Energy ratio (0-1)")
     signal_duration: float = Field(
         ..., gt=0, description="Signal duration (seconds, positive)"
     )
 
-    model_config = {"frozen": True}
 
-
-class Phase2MetricsSchema(BaseModel):
+class Phase2MetricsSchema(FiniteModel):
     """Validate Phase 2 (instantaneous phase) output metrics."""
 
     mean_inst_freq_hz: float = Field(
-        ..., gt=0.5, lt=3.0, description="Mean instantaneous frequency (0.5-3.0 Hz)"
+        ..., gt=0, description="Mean instantaneous frequency (Hz)"
     )
-    cv_inst_freq: float = Field(
-        ..., ge=0, le=0.5, description="CV of inst freq (0-50%)"
-    )
+    cv_inst_freq: float = Field(..., ge=0, description="CV of instantaneous frequency")
     valid_fraction: float = Field(..., ge=0, le=1, description="Valid fraction (0-1)")
-    n_cycles_estimated: float = Field(
-        ..., gt=0, description="Number of cycles (positive)"
+    num_cycles: float = Field(
+        ...,
+        gt=0,
+        validation_alias=AliasChoices("num_cycles", "n_cycles_estimated"),
+        description="Number of cycles (positive)",
     )
 
     @field_validator("cv_inst_freq")
@@ -69,23 +79,19 @@ class Phase2MetricsSchema(BaseModel):
             warnings.warn(f"CV={v:.1%} is high (>15%). Check signal quality.")
         return v
 
-    model_config = {"frozen": True}
 
-
-class Phase3MetricsSchema(BaseModel):
+class Phase3MetricsSchema(FiniteModel):
     """Validate Phase 3 (bilateral synchronization) output metrics."""
 
     # Frequency metrics
-    freq_left: float = Field(
-        ..., gt=0.5, lt=3.0, description="Left foot frequency (0.5-3.0 Hz)"
-    )
-    freq_right: float = Field(
-        ..., gt=0.5, lt=3.0, description="Right foot frequency (0.5-3.0 Hz)"
-    )
+    freq_left: float = Field(..., gt=0, description="Left foot frequency (Hz)")
+    freq_right: float = Field(..., gt=0, description="Right foot frequency (Hz)")
     freq_diff: float = Field(
-        ..., ge=0, lt=1.0, description="Frequency difference (0-1 Hz)"
+        ..., ge=0, description="Absolute frequency difference (Hz)"
     )
-    freq_ratio: float = Field(..., ge=0, le=1.0, description="Frequency ratio (0-100%)")
+    freq_ratio: float = Field(
+        ..., ge=0, le=2.0, description="Relative frequency difference (0-2)"
+    )
     frequency_match_flag: bool = Field(..., description="Frequencies matched")
 
     # PLV metrics
@@ -99,7 +105,12 @@ class Phase3MetricsSchema(BaseModel):
     circular_variance: float = Field(
         ..., ge=0, le=1, description="Circular variance (0-1)"
     )
-    circular_std: float = Field(..., ge=0, description="Circular std (radians)")
+    circular_std: float = Field(
+        ...,
+        ge=0,
+        allow_inf_nan=True,
+        description="Circular std (radians; infinity for zero resultant)",
+    )
 
     # NEW: Temporal synchronization metrics
     phase_slip_rate: float = Field(
@@ -131,26 +142,16 @@ class Phase3MetricsSchema(BaseModel):
             warnings.warn(f"PLV={v:.3f} is low (<0.5). Check coordination quality.")
         return v
 
-    @field_validator("plv_mean_windowed", "plv")
-    @classmethod
-    def validate_plv_consistency(cls, v, info):
-        # Check if windowed PLV is very different from global PLV
-        if "plv" in info.data and "plv_mean_windowed" in info.data:
-            global_plv = info.data.get("plv")
-            windowed_plv = info.data.get("plv_mean_windowed")
-            if abs(global_plv - windowed_plv) > 0.15:
-                import warnings
-
-                warnings.warn(
-                    f"Large discrepancy between global PLV ({global_plv:.3f}) "
-                    f"and windowed PLV ({windowed_plv:.3f}). Check validity mask."
-                )
-        return v
-
-    model_config = {"frozen": True}
+    @model_validator(mode="after")
+    def validate_consistency(self):
+        if not math.isclose(self.circular_variance, 1 - self.plv, abs_tol=1e-6):
+            raise ValueError("Circular variance must equal 1 - PLV")
+        if self.valid_fraction_sync <= 0:
+            raise ValueError("Synchronization requires a positive valid fraction")
+        return self
 
 
-class MasterMetricsSchema(BaseModel):
+class MasterMetricsSchema(FiniteModel):
     """Validate complete trial metrics (all phases combined)."""
 
     trial: str = Field(..., min_length=1, description="Trial name")
@@ -162,14 +163,14 @@ class MasterMetricsSchema(BaseModel):
     )
 
     # Phase 1
-    f0_hz: float = Field(..., gt=0.5, lt=3.0)
+    f0_hz: float = Field(..., ge=0.5, le=3.0)
     spectral_snr: float = Field(..., gt=0)
 
     # Phase 2
-    mean_inst_freq_left: float = Field(..., gt=0.5, lt=3.0)
-    mean_inst_freq_right: float = Field(..., gt=0.5, lt=3.0)
-    cv_inst_freq_left: float = Field(..., ge=0, le=0.5)
-    cv_inst_freq_right: float = Field(..., ge=0, le=0.5)
+    mean_inst_freq_left: float = Field(..., gt=0)
+    mean_inst_freq_right: float = Field(..., gt=0)
+    cv_inst_freq_left: float = Field(..., ge=0)
+    cv_inst_freq_right: float = Field(..., ge=0)
 
     # Phase 3
     plv: float = Field(..., ge=0, le=1)

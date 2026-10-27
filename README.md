@@ -1,123 +1,111 @@
-# Gait Analysis Pipeline
+# Gait State Estimation Lab
 
-Bilateral gait coordination analysis pipeline using phase synchronization.
+**Signal processing, Fourier system identification and an Extended Kalman Filter for periodic IMU signals.**
 
----
+A Python engineering project with a runnable synthetic demo, an EKF implemented in NumPy, explicit baselines and an optional gait-data benchmark. The demo runs without downloading a clinical dataset.
 
-## Quick Start (3 steps)
+[CI runs](https://github.com/Giml0pb/Gait_Project/actions/workflows/ci.yml) · [Technical walkthrough](docs/technical_walkthrough.md) · [EKF equations](docs/phase_state_space.md) · [Benchmark results](docs/phase_validation_results.md)
 
-### 1. Install Docker Desktop
-Download and install from: https://www.docker.com/products/docker-desktop
+## Run the demo
 
-### 2. Prepare data
-Place your data following this structure:
-```
-Gait_Project/data/raw/dataset/data/
-├── healthy/
-├── neuro/
-└── ortho/
-```
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/). Python 3.11 and 3.12 are exercised in CI.
 
-### 3. Run
-- **Windows**: Double-click `EJECUTAR.bat`
-- **Linux/Mac**: `./ejecutar.sh` (coming soon)
-
-The script offers 4 processing options:
-- Option 1: 1 trial (10 seconds) - for testing
-- Option 2: 8 trials/group (5 minutes)
-- Option 3: 20 trials/group (15 minutes)
-- Option 4: All trials (2 hours)
-
-### Results
-- **Figures**: `outputs/figures/`
-- **Metrics**: `outputs/tables/`
-
----
-
-## Key Metrics
-
-- **PLV** (Phase Locking Value): 0-1, higher = better synchronization
-- **Anti-phase error**: 0-180°, lower = better coordination
-- **Phase slip rate**: slips/minute, lower = more stable
-- **Cadence**: steps/minute per foot
-- **Stride time**: stride duration in seconds
-
-**Typical values** (987 trials):
-- PLV: 0.96 ± 0.14
-- Anti-phase error: 13° ± 25°
-- Phase slip rate: 0.8 ± 3.1 slips/min
-
----
-
-## Technical Documentation
-
-### Scientific Pipeline (3 phases)
-
-**Phase 1: Spectral Analysis**
-- Identifies dominant frequency (f₀) via FFT
-- Output: f₀ and spectral SNR
-
-**Phase 2: Instantaneous Phase**
-- Bandpass filtering around f₀
-- Hilbert transform → analytic signal
-- Output: φ_L(t), φ_R(t) with quality validation
-
-**Phase 3: Bilateral Synchronization**
-- Analyzes inter-foot coordination
-- Static metrics: PLV, anti-phase error
-- Temporal metrics: phase slips, windowed PLV
-- Output: 19 synchronization metrics
-
-### Advanced Usage (without Docker)
-
-Requires Python 3.11+ and uv:
 ```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Process single trial
-uv run python scripts/run_single_trial.py HS_1_1
-
-# Batch processing
-uv run python scripts/run_batch_processing.py --target 20
-
-# Patient-level aggregation
-uv run python scripts/aggregate_by_patient.py
+uv sync --locked
+uv run gait-lab demo
 ```
 
-### Output Files
+Open **`outputs/demo/report.html`** in a browser. The self-contained report lets you switch between five scenarios: stable coordination, changing frequency, changing bilateral timing, missing observations and waveform mismatch. It embeds its figures and needs no network connection to view them.
 
+![EKF tracking through missing sensor observations](docs/assets/ekf_demo.png)
+
+```bash
+# One scenario, with a different noise level
+uv run gait-lab demo --scenario sensor_dropout --noise 0.2 --seed 42
+
+# Numerical outputs only
+uv run gait-lab demo --scenario morphology_drift --no-figures
+
+# Equivalent module entry point
+uv run python -m gait_project demo
 ```
-outputs/tables/
-├── master_metrics.csv              # 987 trials, 36 metrics
-├── patient_aggregated_metrics.csv  # 232 patients (averaged)
-├── frequency_summary.csv           # Phase 1 metrics
-├── phase_summary.csv               # Phase 2 metrics
-└── synchronization_summary.csv     # Phase 3 metrics
+
+The demo exports time series, metrics, plots, identified Fourier coefficients and a manifest with parameters, dependency versions and source hashes. A separate synthetic calibration record supplies the observation template; the test record supplies observations and a known evaluation reference.
+
+[Checked-in numerical example](examples/synthetic/summary.json) · [Example metrics](examples/synthetic/metrics.csv)
+
+## What is implemented
+
+| Area | Implementation | Start reading |
+| --- | --- | --- |
+| Signal processing | Detrending, segment-aware Welch PSD, harmonic frequency selection, SOS Butterworth filters and Hilbert phase | [Spectral selection](src/gait_project/research/phase_estimators.py) |
+| System identification | Least-squares Fourier observation templates, learned on separate calibration data | [Template fitting](src/gait_project/state_space/harmonic_ekf.py) |
+| State estimation | Phase, angular frequency, amplitude and bias; nonlinear observation Jacobian; Joseph covariance update | [Harmonic EKF](src/gait_project/state_space/harmonic_ekf.py) |
+| Missing observations | Prediction-only steps through gaps, with uncertainty propagation | [Dropout demo](src/gait_project/demo/run.py) |
+| Validation | Seeded simulation, reference baselines, model-mismatch tests, participant-separated benchmark and one-to-one event matching | [Tests](tests/) |
+| Delivery | Installable package, CLI, locked dependencies, Docker, CI and downloadable demo artifacts | [Workflow](.github/workflows/ci.yml) |
+
+The two feet are estimated independently. The model does not impose bilateral synchronization. Its frequency initialization and preprocessing use offline information; the implementation demonstrates recursive estimation, not a validated real-time controller.
+
+## Engineering decisions and results
+
+- **The largest spectral peak is not necessarily the stride frequency.** A harmonic-rich waveform can place most power at twice the cycle frequency. The demo and benchmark make that ambiguity observable.
+- **Prediction and correction are tested separately.** Missing samples cause prediction-only EKF steps. Hilbert abstains inside those gaps; coverage and prediction error are reported separately.
+- **A model can track the wrong interpretation.** Waveform changes can bias a fixed observation template while true bilateral timing stays constant. The mismatch scenario deliberately exposes this failure.
+- **The more complex method is not assumed to win.** In the optional 1,356-trial benchmark, Hilbert on the fundamental had lower median relative-phase error than this EKF: 8.89° versus 13.59°. The result is retained and documented.
+
+The synthetic demo has a known phase reference. The clinical-data benchmark uses algorithm-derived events and measures agreement with that reference, rather than establishing clinical accuracy. See the [protocol](docs/phase_validation_protocol.md) for split design, support masks and limitations.
+
+## Test and build
+
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv build --wheel
 ```
 
-Use `patient_aggregated_metrics.csv` for statistical analysis (avoids pseudoreplication).
+CI runs the tests on Python 3.11 and 3.12, builds the wheel, executes the data-free demo and uploads the generated report. To inspect the report without setting up Python, download `synthetic-demo` from a successful [CI run](https://github.com/Giml0pb/Gait_Project/actions/workflows/ci.yml), extract it and open `report.html`.
 
-### Code Structure
+## Docker
 
+```bash
+docker build -t gait-lab .
+docker run --rm --network none -v "$PWD/outputs:/app/outputs" gait-lab
 ```
+
+The default container command runs the synthetic demo and saves it under `outputs/demo/`. The example assumes the image was built with network access; runtime evaluation needs no network or clinical data. PowerShell users can replace `$PWD` with an absolute host output path.
+
+## Optional dataset benchmark
+
+Place the source dataset under `data/raw/dataset/data/`, following the [dataset guide](docs/dataset_structure.md), or pass `--data-dir`.
+
+```bash
+# Spectral/phase baseline, one trial
+uv run python scripts/run_single_trial.py HS_1_1 --no-figures
+
+# Full baseline with participant aggregation
+uv run python scripts/run_batch_processing.py --all --output-dir outputs/baseline_run
+
+# Dominant-band Hilbert vs fundamental-band Hilbert vs harmonic EKF
+uv run python scripts/validate_phase_model.py --output-dir outputs/phase_study
+```
+
+Use a fresh output directory for each dataset run. Signals, participant-level outputs and generated run folders are excluded from Git. The repository includes aggregate figures and a [benchmark summary](examples/phase_validation/summary.json); the [results document](docs/phase_validation_results.md) explains what those numbers support.
+
+## Project map
+
+```text
 src/gait_project/
-├── io/                 # Data loading
-├── spectral/           # Phase 1: spectral analysis
-├── phase/              # Phase 2: instantaneous phase
-├── synchronization/    # Phase 3: bilateral synchronization
-├── validation/         # Pydantic schemas
-├── viz/                # Visualizations
-└── pipeline_*.py       # Complete pipelines
+├── demo/              Synthetic benchmark, figures and local HTML report
+├── state_space/       Fourier observation model and harmonic EKF
+├── spectral/          PSD and spectral features
+├── phase/             Filtering, Hilbert attributes and quality masks
+├── synchronization/   Circular and temporal coordination metrics
+├── research/          Phase references, estimators and grouped validation
+├── preprocess/        Signal cleaning, bilateral alignment and turn handling
+├── io/                Dataset loading and atomic table writes
+└── cli.py             Installed gait-lab command
 ```
 
-### Discriminative Metrics
-
-Based on 232-patient analysis:
-1. **anti_phase_error_deg** (p=0.008) - Best discriminator
-2. **plv** (p=0.038) - Global synchronization
-3. **plv_mean_windowed** (p=0.048) - Temporal stability
-
----
-
-**Repository**: https://github.com/Giml0pb/Gait_Project
+[Documentation index](docs/README.md) · [Technical walkthrough](docs/technical_walkthrough.md) · [Historical notes](docs/archive/README.md)

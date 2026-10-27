@@ -82,7 +82,7 @@ def main():
         print(f"Frequency left:       {metrics['freq_left']:.3f} Hz")
         print(f"Frequency right:      {metrics['freq_right']:.3f} Hz")
         print(f"Frequency difference: {metrics['freq_diff']:.4f} Hz")
-        print(f"Frequency ratio:      {metrics['freq_ratio']*100:.2f}%")
+        print(f"Frequency ratio:      {metrics['freq_ratio'] * 100:.2f}%")
         print(
             f"Frequency matched:    {'✓ YES' if metrics['frequency_match_flag'] else '✗ NO'}"
         )
@@ -94,7 +94,7 @@ def main():
         print(f"Circular std:         {metrics['circular_std']:.3f} rad")
         print()
         print(f"Valid samples sync:   {metrics['valid_samples_sync']}")
-        print(f"Valid fraction sync:  {metrics['valid_fraction_sync']*100:.1f}%")
+        print(f"Valid fraction sync:  {metrics['valid_fraction_sync'] * 100:.1f}%")
         print("-" * 50)
 
         # Quality assessment

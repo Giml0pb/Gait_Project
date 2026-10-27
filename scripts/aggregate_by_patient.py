@@ -22,6 +22,7 @@ Usage:
 """
 
 import sys
+import argparse
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -30,12 +31,21 @@ import numpy as np
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
+from gait_project.analysis.aggregation import mean_metric
+from gait_project.io.results import write_csv_atomic
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-INPUT_CSV = project_root / "outputs" / "tables" / "master_metrics.csv"
-OUTPUT_CSV = project_root / "outputs" / "tables" / "patient_aggregated_metrics.csv"
+INPUT_CSV = project_root / "outputs" / "baseline_v2" / "tables" / "master_metrics.csv"
+OUTPUT_CSV = (
+    project_root
+    / "outputs"
+    / "baseline_v2"
+    / "tables"
+    / "patient_aggregated_metrics.csv"
+)
 
 # Metadata columns to preserve (take from first trial)
 METADATA_COLS = [
@@ -66,62 +76,6 @@ KEY_METRICS_FOR_STD = [
 ]
 
 # ============================================================================
-# ROUNDING RULES (same as batch processing for consistency)
-# ============================================================================
-
-ROUNDING_RULES = {
-    # Frequencies: 3 decimals
-    "f0_hz": 3,
-    "mean_inst_freq_left": 3,
-    "mean_inst_freq_right": 3,
-    "freq_left": 3,
-    "freq_right": 3,
-    "freq_diff": 3,
-    # SNR: 2 decimals
-    "spectral_snr": 2,
-    # Coefficients of variation: 4 decimals
-    "cv_inst_freq_left": 4,
-    "cv_inst_freq_right": 4,
-    "freq_ratio": 4,
-    # Fractions/PLV: 3 decimals
-    "plv": 3,
-    "plv_mean_windowed": 3,
-    "valid_fraction_left": 3,
-    "valid_fraction_right": 3,
-    "valid_fraction_sync": 3,
-    "circular_variance": 3,
-    "circular_std": 3,
-    # Angles: 1 decimal
-    "mean_phase_diff_deg": 1,
-    "anti_phase_error_deg": 1,
-    # Cadence: 1 decimal
-    "cadence_steps_per_min_left": 1,
-    "cadence_steps_per_min_right": 1,
-    # Stride time: 3 decimals
-    "stride_time_left_s": 3,
-    "stride_time_right_s": 3,
-    "stride_time_asymmetry_s": 3,
-    "stride_time_asymmetry_pct": 1,
-    # Phase slip rate: 2 decimals
-    "phase_slip_rate": 2,
-    # PLV temporal std: 4 decimals
-    "plv_std_windowed": 4,
-    # PLV trend: 6 decimals
-    "plv_trend": 6,
-    # Std metrics: 4 decimals (variability metrics)
-    "plv_std": 4,
-    "anti_phase_error_deg_std": 4,
-    "phase_slip_rate_std": 4,
-    "plv_mean_windowed_std": 4,
-    "plv_std_windowed_std": 4,
-    "mean_inst_freq_left_std": 4,
-    "mean_inst_freq_right_std": 4,
-    "cv_inst_freq_left_std": 4,
-    "cv_inst_freq_right_std": 4,
-}
-
-
-# ============================================================================
 # AGGREGATION FUNCTIONS
 # ============================================================================
 
@@ -136,6 +90,14 @@ def aggregate_by_patient(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with patient-level aggregated metrics
     """
+    if df.empty or "subject" not in df or df["subject"].isna().any():
+        raise ValueError(
+            "Aggregation requires nonempty data with participant identifiers"
+        )
+    if "trial" in df and df.duplicated(["subject", "trial"]).any():
+        raise ValueError(
+            "Duplicate trials must be removed before participant aggregation"
+        )
     # Identify numeric columns (to average)
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 
@@ -149,6 +111,11 @@ def aggregate_by_patient(df: pd.DataFrame) -> pd.DataFrame:
 
     for subject_id, subject_df in grouped:
         n_trials = len(subject_df)
+        for col in ("group", "pathology"):
+            if col in subject_df and subject_df[col].nunique(dropna=False) != 1:
+                raise ValueError(
+                    f"Conflicting {col} metadata for participant {subject_id}"
+                )
 
         # Start with metadata from first trial
         agg_row = {}
@@ -158,19 +125,25 @@ def aggregate_by_patient(df: pd.DataFrame) -> pd.DataFrame:
 
         # Add trial count
         agg_row["n_trials"] = n_trials
+        if "session" in subject_df:
+            agg_row["n_sessions"] = subject_df["session"].nunique()
+            if agg_row["n_sessions"] > 1:
+                agg_row["session"] = np.nan
+                if "evaluation_score_value" in subject_df:
+                    agg_row["evaluation_score_value"] = np.nan
 
         # Average all numeric metrics
         for metric in metrics_to_avg:
             if metric in subject_df.columns:
-                agg_row[metric] = subject_df[metric].mean()
+                agg_row[metric] = mean_metric(metric, subject_df[metric])
 
         # Add std for key metrics
         for metric in KEY_METRICS_FOR_STD:
             if metric in subject_df.columns and n_trials > 1:
                 agg_row[f"{metric}_std"] = subject_df[metric].std()
             elif metric in subject_df.columns:
-                # Only 1 trial, std is 0
-                agg_row[f"{metric}_std"] = 0.0
+                # A single trial cannot estimate within-participant variation.
+                agg_row[f"{metric}_std"] = np.nan
 
         # Handle boolean columns (frequency_match_flag) - use mode
         bool_cols = subject_df.select_dtypes(include=[bool]).columns
@@ -186,11 +159,6 @@ def aggregate_by_patient(df: pd.DataFrame) -> pd.DataFrame:
 
     # Create DataFrame
     df_agg = pd.DataFrame(aggregated_rows)
-
-    # Apply rounding rules
-    for col, decimals in ROUNDING_RULES.items():
-        if col in df_agg.columns:
-            df_agg[col] = df_agg[col].round(decimals)
 
     return df_agg
 
@@ -274,20 +242,24 @@ def print_summary(df_trials: pd.DataFrame, df_patients: pd.DataFrame):
 
 def main():
     """Main aggregation workflow."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", type=Path, default=INPUT_CSV)
+    parser.add_argument("--output", type=Path, default=OUTPUT_CSV)
+    args = parser.parse_args()
     print("=" * 80)
     print("PATIENT-LEVEL AGGREGATION")
     print("=" * 80)
     print()
 
     # Check input file exists
-    if not INPUT_CSV.exists():
-        print(f"ERROR: Input file not found: {INPUT_CSV}")
+    if not args.input.exists():
+        print(f"ERROR: Input file not found: {args.input}")
         print("Run batch processing first to generate master_metrics.csv")
         return 1
 
     print("[1/4] Loading trial-level data...")
-    print(f"      {INPUT_CSV}")
-    df_trials = pd.read_csv(INPUT_CSV)
+    print(f"      {args.input}")
+    df_trials = pd.read_csv(args.input)
     print(f"      Loaded {len(df_trials)} trials")
     print()
 
@@ -302,16 +274,16 @@ def main():
     print()
 
     print("[4/4] Saving to CSV...")
-    OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
-    df_patients.to_csv(OUTPUT_CSV, index=False)
-    print(f"      ✓ Saved: {OUTPUT_CSV}")
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    write_csv_atomic(df_patients, args.output)
+    print(f"      ✓ Saved: {args.output}")
     print()
 
     # Print summary
     print_summary(df_trials, df_patients)
 
     print("\n✓ Patient aggregation complete!")
-    print(f"Output: {OUTPUT_CSV}")
+    print(f"Output: {args.output}")
     print()
 
     return 0

@@ -56,7 +56,8 @@ Informe/
 .DS_Store
 Thumbs.db
 
-# Development scripts (test/validation/diagnostic - not for public)
+# The maintained regression suite is versioned under tests/.
+# Legacy, local exploratory diagnostics are not part of that suite.
 scripts/test_*.py
 scripts/validate_*.py
 scripts/verify_*.py
@@ -67,3 +68,16 @@ scripts/reprocess_with_temporal_metrics.py
 # Editor configs (optional - uncomment if needed)
 # .vscode/
 # .idea/
+
+# Maintained phase-validity study entry point
+!scripts/validate_phase_model.py
+
+# Local workspace and browser tooling
+.claude/
+.agents/
+.codex/
+.aws/
+.playwright-mcp/
+
+# Unrelated local coursework notes
+/docs/Temario.md

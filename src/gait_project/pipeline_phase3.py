@@ -21,9 +21,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import Dict, Optional
-import warnings
 
 from gait_project.pipeline_phase2 import Phase2Pipeline
+from gait_project.io.results import upsert_csv
+from gait_project.validation import validate_phase3_metrics
 from gait_project.synchronization.phase_sync import analyze_phase_synchronization
 from gait_project.viz.sync_plots import (
     plot_phase_signals,
@@ -126,6 +127,10 @@ class Phase3Pipeline:
         print("[4/6] Analyzing phase synchronization...")
         self._analyze_synchronization()
 
+        self._validate_metrics()
+        self.phase2_left._export_results(trial_name, signal_left)
+        self.phase2_right._export_results(trial_name, signal_right)
+
         # Step 5: Generate visualizations
         print("[5/6] Generating visualizations...")
         if self.generate_figures:
@@ -134,9 +139,6 @@ class Phase3Pipeline:
         # Step 6: Export results
         print("[6/6] Exporting results...")
         self._export_results(trial_name)
-
-        # Step 7: Validate metrics
-        self._validate_metrics()
 
         print(f"\n{'=' * 70}")
         print("Phase 3 pipeline completed!")
@@ -155,35 +157,32 @@ class Phase3Pipeline:
         self, trial_name: str, signal_left: str, signal_right: str
     ) -> None:
         """Run Phase 2 pipeline for both feet to extract phase data."""
-        # Initialize Phase 2 pipeline
-        self.phase2_pipeline = Phase2Pipeline(
-            self.base_path,
-            self.output_dir,
-            self.bandwidth,
-            self.buffer_time,
+        self.phase2_left = Phase2Pipeline(
+            self.base_path, self.output_dir, self.bandwidth, self.buffer_time
         )
-        # Propagate generate_figures setting
-        self.phase2_pipeline.generate_figures = self.generate_figures
-
-        # Process left foot
-        print("   Processing left foot...")
-        metrics_left = self.phase2_pipeline.run(trial_name, signal_left)
-
-        # Extract left foot data
-        self.time = self.phase2_pipeline.time
-        self.phase_left = self.phase2_pipeline.phase_wrapped
+        self.phase2_right = Phase2Pipeline(
+            self.base_path, self.output_dir, self.bandwidth, self.buffer_time
+        )
+        for pipeline in (self.phase2_left, self.phase2_right):
+            pipeline.generate_figures = self.generate_figures
+            pipeline.save_tables = False
+        metrics_left = self.phase2_left.run(trial_name, signal_left)
+        metrics_right = self.phase2_right.run(trial_name, signal_right)
+        self.phase2_pipeline = (
+            self.phase2_right
+        )  # Backwards-compatible diagnostic access.
+        if not np.array_equal(self.phase2_left.time, self.phase2_right.time):
+            raise ValueError(
+                "Left and right phases do not share the same sample timeline"
+            )
+        self.time = self.phase2_left.time
+        self.phase_left = self.phase2_left.phase_wrapped
+        self.phase_right = self.phase2_right.phase_wrapped
         self.freq_left = metrics_left["mean_inst_freq_hz"]
-        self.validity_mask_left = self.phase2_pipeline.validity_mask
-        self.subject = self.phase2_pipeline.trial_data.metadata.subject
-
-        # Process right foot
-        print("   Processing right foot...")
-        metrics_right = self.phase2_pipeline.run(trial_name, signal_right)
-
-        # Extract right foot data
-        self.phase_right = self.phase2_pipeline.phase_wrapped
         self.freq_right = metrics_right["mean_inst_freq_hz"]
-        self.validity_mask_right = self.phase2_pipeline.validity_mask
+        self.validity_mask_left = self.phase2_left.validity_mask
+        self.validity_mask_right = self.phase2_right.validity_mask
+        self.subject = self.phase2_left.trial_data.metadata.subject
 
     def _create_sync_mask(self) -> None:
         """
@@ -200,14 +199,14 @@ class Phase3Pipeline:
 
         print(
             f"   Sync mask: {valid_count}/{total_count} samples "
-            f"({valid_count/total_count*100:.1f}%)"
+            f"({valid_count / total_count * 100:.1f}%)"
         )
 
     def _compute_phase_difference(self) -> None:
         """Compute phase difference Δφ(t) = φ_L(t) - φ_R(t)."""
-        # This will be computed in analyze_synchronization
-        # but we store it for visualization
-        pass
+        from gait_project.synchronization.phase_sync import compute_phase_difference
+
+        self.phase_diff = compute_phase_difference(self.phase_left, self.phase_right)
 
     def _analyze_synchronization(self) -> None:
         """Perform comprehensive synchronization analysis."""
@@ -234,8 +233,6 @@ class Phase3Pipeline:
 
         # NEW: Temporal synchronization analysis
         # Only analyze on valid samples
-        phase_left_valid = self.phase_left[self.validity_mask_sync]
-        phase_right_valid = self.phase_right[self.validity_mask_sync]
         fs = self.phase2_pipeline.trial_data.metadata.freq
 
         # Window size: 2 seconds at sampling rate (e.g., 256 samples at 128 Hz)
@@ -243,11 +240,13 @@ class Phase3Pipeline:
         step_size = window_size // 2  # 50% overlap
 
         temporal_metrics = analyze_temporal_synchronization(
-            phase_left_valid,
-            phase_right_valid,
+            self.phase_left,
+            self.phase_right,
             fs,
             window_size=window_size,
             step_size=step_size,
+            time=self.time,
+            validity_mask=self.validity_mask_sync,
         )
 
         # Add temporal metrics to main metrics dict
@@ -288,7 +287,7 @@ class Phase3Pipeline:
         print(f"   Phase slip rate: {self.metrics['phase_slip_rate']:.2f} slips/min")
         print(f"   Mean Δφ: {self.metrics['mean_phase_diff']:.3f} rad")
         print(f"   Anti-phase error: {self.metrics['anti_phase_error']:.3f} rad")
-        print(f"   Frequency ratio: {self.metrics['freq_ratio']*100:.1f}%")
+        print(f"   Frequency ratio: {self.metrics['freq_ratio'] * 100:.1f}%")
 
     def _generate_figures(self, trial_name: str) -> None:
         """Generate all Phase 3 figures."""
@@ -375,8 +374,9 @@ class Phase3Pipeline:
         from gait_project.viz.sync_plots import plot_phase_slip_events
 
         fig = plot_phase_slip_events(
-            time_sync,
-            phase_diff_sync,
+            self.time,
+            np.where(self.validity_mask_sync, self.phase_diff, np.nan),
+            fs=self.phase2_pipeline.trial_data.metadata.freq,
             slip_threshold=np.pi / 2,
             title=f"Phase Slip Events - {trial_name}",
         )
@@ -415,49 +415,13 @@ class Phase3Pipeline:
         # Save to CSV
         csv_path = self.tables_dir / "synchronization_summary.csv"
 
-        # Append if file exists, otherwise create new
-        if csv_path.exists():
-            df_existing = pd.read_csv(csv_path)
-
-            # Check for duplicates
-            # Unique key: (subject, trial)
-            duplicate_mask = (df_existing["subject"] == results["subject"]) & (
-                df_existing["trial"] == results["trial"]
-            )
-
-            if duplicate_mask.any():
-                warnings.warn(
-                    f"Duplicate entry found for ({results['subject']}, {results['trial']}). "
-                    f"Replacing old entry with new one."
-                )
-                # Remove old entry
-                df_existing = df_existing[~duplicate_mask]
-
-            # Append new entry
-            df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-            df_combined.to_csv(csv_path, index=False)
-        else:
-            df_new.to_csv(csv_path, index=False)
+        upsert_csv(df_new, csv_path, ["subject", "trial"])
 
         print(f"   Results saved to: {csv_path}")
 
     def _validate_metrics(self) -> None:
         """Validate Phase 3 metrics using Pydantic schemas."""
-        try:
-            from gait_project.validation import validate_phase3_metrics
-
-            # Validate metrics
-            validate_phase3_metrics(self.metrics)
-            print("   ✅ Metrics validated successfully")
-
-        except ImportError:
-            # Pydantic not available, skip validation
-            warnings.warn("Pydantic not available, skipping validation")
-        except Exception as e:
-            # Validation failed
-            error_msg = f"Metrics validation failed: {e}"
-            warnings.warn(error_msg)
-            # Don't stop processing, just warn
+        validate_phase3_metrics(self.metrics)
 
 
 def run_phase3_pipeline(

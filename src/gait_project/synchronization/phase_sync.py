@@ -63,6 +63,12 @@ def compute_phase_difference(
         indicating specular sensor orientation. The shifted_right convention
         corrects this to produce the expected anti-phase pattern (Δφ ≈ 180°).
     """
+    phase_left = np.asarray(phase_left, dtype=float)
+    phase_right = np.asarray(phase_right, dtype=float)
+    if phase_left.ndim != 1 or phase_right.shape != phase_left.shape:
+        raise ValueError(
+            "Left and right phases must be matching one-dimensional arrays"
+        )
     # Compute difference with π shift for right foot
     # Δφ = φ_L - (φ_R + π) = φ_L - φ_R - π
     delta_phi = phase_left - (phase_right + np.pi)
@@ -92,6 +98,9 @@ def compute_plv(phase_diff: np.ndarray) -> float:
     Returns:
         plv: Phase Locking Value in [0, 1]
     """
+    phase_diff = np.asarray(phase_diff, dtype=float)
+    if phase_diff.ndim != 1 or not len(phase_diff) or not np.isfinite(phase_diff).all():
+        raise ValueError("PLV requires a nonempty, finite, one-dimensional phase array")
     # Convert phase differences to unit vectors on the circle
     z = np.exp(1j * phase_diff)
 
@@ -99,7 +108,7 @@ def compute_plv(phase_diff: np.ndarray) -> float:
     mean_z = np.mean(z)
 
     # PLV is the magnitude of the mean
-    plv = np.abs(mean_z)
+    plv = np.clip(np.abs(mean_z), 0.0, 1.0)
 
     return plv
 
@@ -145,9 +154,8 @@ def check_frequency_matching(
     the frequencies of both oscillators are similar. If frequencies differ
     significantly, the phase difference will drift over time and PLV loses meaning.
 
-    CORRECTED: Tolerance reduced from 5% to 3% for more conservative matching.
-    Justification: Literature shows that frequency differences >3% indicate
-    pathological asymmetry where 1:1 phase locking is unlikely (Pikovsky et al., 2001).
+    The 3% default is an analysis heuristic, not a validated clinical threshold.
+    A mismatch flags drift to inspect alongside PLV and the phase trajectory.
 
     Args:
         freq_left: Mean instantaneous frequency of left foot (Hz)
@@ -205,6 +213,25 @@ def analyze_phase_synchronization(
     Returns:
         metrics: Dictionary with synchronization metrics
     """
+    phase_left = np.asarray(phase_left, dtype=float)
+    phase_right = np.asarray(phase_right, dtype=float)
+    if (
+        phase_left.ndim != 1
+        or phase_right.shape != phase_left.shape
+        or not len(phase_left)
+    ):
+        raise ValueError("Phases must be nonempty matching one-dimensional arrays")
+    if (
+        not np.isfinite([freq_left, freq_right]).all()
+        or min(freq_left, freq_right) <= 0
+    ):
+        raise ValueError("Foot frequencies must be positive and finite")
+    if validity_mask is not None:
+        validity_mask = np.asarray(validity_mask)
+        if validity_mask.shape != phase_left.shape or validity_mask.dtype != bool:
+            raise ValueError("Validity mask must be boolean and match the phases")
+        if not validity_mask.any():
+            raise ValueError("No valid synchronization samples")
     # Check frequency matching
     is_freq_matched, freq_diff, freq_ratio = check_frequency_matching(
         freq_left, freq_right, freq_tolerance
@@ -213,7 +240,7 @@ def analyze_phase_synchronization(
     if not is_freq_matched:
         warnings.warn(
             f"Frequency mismatch detected: {freq_left:.3f} Hz vs {freq_right:.3f} Hz "
-            f"({freq_ratio*100:.1f}% difference). PLV may not be reliable."
+            f"({freq_ratio * 100:.1f}% difference). PLV may not be reliable."
         )
 
     # Apply validity mask if provided

@@ -57,7 +57,6 @@ def main():
     print(f"Signal: {SIGNAL_NAME}")
     print(f"Output directory: {OUTPUT_DIR}")
     print("=" * 70)
-    print()
 
     # Run pipeline
     try:

@@ -1,7 +1,7 @@
 [project]
 name = "gait-project"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.3.0"
+description = "Signal processing and harmonic extended Kalman filtering for gait state estimation"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -13,6 +13,23 @@ dependencies = [
     "seaborn>=0.13.0",
 ]
 
+[project.scripts]
+gait-lab = "gait_project.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Giml0pb/Gait_Project"
+Issues = "https://github.com/Giml0pb/Gait_Project/issues"
+
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gait_project"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "scripts", "README.md", "pyproject.toml", "uv.lock", "docs"]
+
 [dependency-groups]
 dev = [
     "pre-commit>=4.5.1",
@@ -21,7 +38,23 @@ dev = [
 ]
 
 [tool.ruff]
+extend-exclude = [
+    "scripts/test_*.py",
+    "scripts/diagnose_*.py",
+    "scripts/verify_*.py",
+    "scripts/compare_before_after_correction.py",
+    "scripts/reprocess_with_temporal_metrics.py",
+    "scripts/validate_phase1_snr_hypothesis.py",
+    "scripts/validate_phase2_issue.py",
+    "scripts/validate_pipeline.py",
+    "scripts/validate_temporal_metrics.py",
+]
 # Exclude E402 (module level import not at top) for scripts
 # Scripts need sys.path.insert before importing project modules
 [tool.ruff.lint.per-file-ignores]
 "scripts/*.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", ".", "scripts"]
+addopts = "-ra"

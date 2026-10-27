@@ -85,7 +85,7 @@ def load_patient(base_path, patient_name):
     return patient_path, os.listdir(patient_path)
 
 
-def load_trial(base_path, trial_name):
+def load_trial(base_path, trial_name, *, include_raw=True):
     """
     Loads files for a specific trial.
 
@@ -101,7 +101,10 @@ def load_trial(base_path, trial_name):
             - "data_processed": DataFrame of processed sensor data.
             - "metadata": Dictionary of metadata.
     """
-    patient_name = trial_name.split("_")[0] + "_" + trial_name.split("_")[1]
+    parts = trial_name.split("_")
+    if len(parts) < 3 or not all(parts):
+        raise ValueError("Trial name must have the form COHORT_SUBJECT_TRIAL")
+    patient_name = "_".join(parts[:2])
     patient_path, patient_trials = load_patient(base_path, patient_name)
     if trial_name not in patient_trials:
         raise ValueError(
@@ -111,7 +114,11 @@ def load_trial(base_path, trial_name):
     trial_path = os.path.join(patient_path, trial_name)
 
     # Load the data files
-    data_raw = load_data_raw(trial_path)
+    data_raw = (
+        load_data_raw(trial_path)
+        if include_raw
+        else dict.fromkeys(["HE", "LB", "LF", "RF"])
+    )
     data_processed = load_data_processed(trial_path)
 
     # Load the metadata

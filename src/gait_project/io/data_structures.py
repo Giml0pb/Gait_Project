@@ -112,10 +112,10 @@ class RawSignalData:
         RF: Right foot sensor DataFrame
     """
 
-    HE: pd.DataFrame
-    LB: pd.DataFrame
-    LF: pd.DataFrame
-    RF: pd.DataFrame
+    HE: Optional[pd.DataFrame]
+    LB: Optional[pd.DataFrame]
+    LF: Optional[pd.DataFrame]
+    RF: Optional[pd.DataFrame]
 
 
 @dataclass

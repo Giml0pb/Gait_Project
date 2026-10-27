@@ -374,10 +374,10 @@ def plot_windowed_plv_timeseries(
     - Are there periods of breakdown?
 
     Args:
-        time_centers: Time points for each window (samples or seconds)
+        time_centers: Original time points for each window in seconds
         plv_timeseries: PLV values for each window
         plv_mean: Mean PLV across windows (optional)
-        plv_trend: Linear trend slope (optional)
+        plv_trend: Linear trend slope in PLV units per second (optional)
         title: Plot title
         figsize: Figure size
 
@@ -411,9 +411,8 @@ def plot_windowed_plv_timeseries(
 
     # Trend line
     if plv_trend is not None and len(plv_timeseries) > 1:
-        x_trend = np.arange(len(plv_timeseries))
-        # Convert time_centers to indices for trend line
-        trend_line = plv_mean + plv_trend * (x_trend - x_trend.mean())
+        mean = np.mean(plv_timeseries) if plv_mean is None else plv_mean
+        trend_line = mean + plv_trend * (time_centers - np.mean(time_centers))
         ax.plot(
             time_centers,
             trend_line,
@@ -435,7 +434,7 @@ def plot_windowed_plv_timeseries(
     )
 
     # Formatting
-    ax.set_xlabel("Time (samples)", fontsize=12)
+    ax.set_xlabel("Time (s)", fontsize=12)
     ax.set_ylabel("Phase Locking Value", fontsize=12)
     ax.set_ylim([0, 1.05])
     ax.set_title(title, fontweight="bold", fontsize=14)
@@ -453,6 +452,7 @@ def plot_phase_slip_events(
     slip_threshold: float = np.pi / 2,
     title: str = "Phase Difference with Slip Events",
     figsize: Tuple[int, int] = (12, 5),
+    fs: Optional[float] = None,
 ) -> plt.Figure:
     """
     Plot phase difference highlighting slip events (abrupt changes).
@@ -480,7 +480,12 @@ def plot_phase_slip_events(
     # Detect slip events
     delta_phase = np.diff(phase_diff)
     delta_phase_wrapped = wrap_angle(delta_phase)
-    slip_indices = np.where(np.abs(delta_phase_wrapped) > slip_threshold)[0]
+    adjacent = np.isfinite(phase_diff[:-1]) & np.isfinite(phase_diff[1:])
+    if fs is not None:
+        adjacent &= np.isclose(np.diff(time), 1 / fs, rtol=1e-5, atol=1e-9)
+    slip_indices = (
+        np.where((np.abs(delta_phase_wrapped) > slip_threshold) & adjacent)[0] + 1
+    )
 
     # Mark slip events
     if len(slip_indices) > 0:

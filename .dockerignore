@@ -50,3 +50,13 @@ scripts/reprocess_with_temporal_metrics.py
 
 # Pre-commit
 .pre-commit-config.yaml
+
+# Maintained phase-validity study entry point
+!scripts/validate_phase_model.py
+
+# Local workspace and browser tooling
+.claude/
+.agents/
+.codex/
+.aws/
+.playwright-mcp/

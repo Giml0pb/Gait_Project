@@ -9,6 +9,8 @@ import pandas as pd
 from typing import List, Dict
 from pathlib import Path
 
+from gait_project.analysis.aggregation import ANGLE_PERIODS, mean_metric
+
 
 def aggregate_trial_metrics(trial_metrics: List[Dict]) -> Dict:
     """
@@ -34,8 +36,11 @@ def aggregate_trial_metrics(trial_metrics: List[Dict]) -> Dict:
     for metric in metric_names:
         values = [trial[metric] for trial in trial_metrics if metric in trial]
 
-        if values:
-            aggregated[f"{metric}_mean"] = np.mean(values)
+        if values and all(isinstance(v, (int, float, np.number)) for v in values):
+            aggregated[f"{metric}_mean"] = mean_metric(metric, values)
+            if metric in ANGLE_PERIODS:
+                # Linear median, min, max and std are not angular summaries.
+                continue
             aggregated[f"{metric}_std"] = np.std(values)
             aggregated[f"{metric}_median"] = np.median(values)
             aggregated[f"{metric}_min"] = np.min(values)

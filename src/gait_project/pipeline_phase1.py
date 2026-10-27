@@ -13,13 +13,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import Dict, Optional
-import warnings
 
 from gait_project.io.load_data import load_trial
 from gait_project.io.data_structures import TrialData
-from gait_project.preprocess.signal_cleaning import detrend_signal, remove_mean
 from gait_project.preprocess.turn_removal import exclude_uturn
-from gait_project.spectral.psd_analysis import compute_psd, compute_spectrogram
+from gait_project.preprocess.trial_signal import prepare_trial_signal
+from gait_project.io.results import upsert_csv
+from gait_project.validation import validate_phase1_metrics
+from gait_project.spectral.psd_analysis import (
+    compute_segmented_psd,
+    compute_spectrogram,
+)
 from gait_project.spectral.dominant_frequency import (
     find_dominant_frequency,
     compute_spectral_metrics,
@@ -115,6 +119,8 @@ class Phase1Pipeline:
         print("[6/7] Estimating dominant frequency and spectral SNR...")
         self._estimate_dominant_frequency()
 
+        validate_phase1_metrics(self.metrics)
+
         # Step 7: Generate outputs
         print("[7/7] Generating visualizations and tables...")
         if self.generate_figures:
@@ -134,7 +140,9 @@ class Phase1Pipeline:
 
     def _load_trial(self, trial_name: str) -> None:
         """Load trial data from dataset."""
-        loaded_data = load_trial(self.base_path, trial_name)
+        loaded_data = load_trial(
+            self.base_path, trial_name, include_raw=self.generate_figures
+        )
         self.trial_data = TrialData.from_load_trial(trial_name, loaded_data)
 
     def _select_signal(self, signal_name: str) -> None:
@@ -144,39 +152,31 @@ class Phase1Pipeline:
                 f"Signal '{signal_name}' not found in processed data columns"
             )
 
-        self.signal_raw = self.trial_data.data_processed[signal_name].values
-
-        # Create time vector
-        fs = self.trial_data.metadata.freq
-        n_samples = len(self.signal_raw)
-        self.time_vector = np.arange(n_samples) / fs
+        self.prepared = prepare_trial_signal(
+            self.trial_data.data_processed,
+            signal_name,
+            self.trial_data.metadata.freq,
+            self.trial_data.metadata.uturn_boundaries,
+            self.buffer_time,
+        )
+        self.signal_raw = self.prepared.raw
+        self.time_vector = self.prepared.time
 
     def _preprocess_signal(self) -> None:
         """Preprocess signal: detrend and remove mean."""
-        # Detrend
-        signal_detrended = detrend_signal(self.signal_raw, method="linear")
-
-        # Remove mean
-        self.signal_cleaned = remove_mean(signal_detrended)
+        self.signal_cleaned = self.prepared.cleaned
 
     def _remove_turn(self) -> None:
-        """Remove U-turn segment with buffer to avoid concatenation artifacts."""
-        uturn_boundaries = self.trial_data.metadata.uturn_boundaries
-        fs = self.trial_data.metadata.freq
-
-        # First, remove turn without buffer (for visualization)
+        """Keep independent walking segments on their original time axis."""
+        bounds = [
+            x - self.prepared.trimmed_leading
+            for x in self.trial_data.metadata.uturn_boundaries
+        ]
         self.signal_no_turn_raw = exclude_uturn(
-            self.signal_cleaned, uturn_boundaries, buffer_time=0.0, fs=fs
+            self.signal_cleaned, bounds, fs=self.trial_data.metadata.freq
         )
-
-        # Then, remove turn with buffer (for analysis)
-        self.signal_no_turn = exclude_uturn(
-            self.signal_cleaned, uturn_boundaries, buffer_time=self.buffer_time, fs=fs
-        )
-
-        # Update time vector for final signal
-        n_samples_no_turn = len(self.signal_no_turn)
-        self.time_no_turn = np.arange(n_samples_no_turn) / fs
+        self.signal_no_turn = self.prepared.walking
+        self.time_no_turn = self.prepared.walking_time
 
     def _compute_psd(self) -> None:
         """Compute power spectral density using Welch's method."""
@@ -186,8 +186,12 @@ class Phase1Pipeline:
         nperseg = 256
         noverlap = 128
 
-        self.psd_freqs, self.psd_values = compute_psd(
-            self.signal_no_turn, fs=fs, nperseg=nperseg, noverlap=noverlap
+        self.psd_freqs, self.psd_values = compute_segmented_psd(
+            self.signal_no_turn,
+            self.prepared.segments,
+            fs=fs,
+            nperseg=nperseg,
+            noverlap=noverlap,
         )
 
     def _estimate_dominant_frequency(self) -> None:
@@ -275,8 +279,14 @@ class Phase1Pipeline:
             return
 
         # Get both signals (preprocessed: detrended + zero-mean)
-        signal_left_raw = self.trial_data.data_processed[signal_name].values
-        signal_right_raw = self.trial_data.data_processed[signal_name_right].values
+        signal_left_raw = self.trial_data.data_processed[signal_name].values[
+            self.prepared.trimmed_leading : len(self.trial_data.data_processed)
+            - self.prepared.trimmed_trailing
+        ]
+        signal_right_raw = self.trial_data.data_processed[signal_name_right].values[
+            self.prepared.trimmed_leading : len(self.trial_data.data_processed)
+            - self.prepared.trimmed_trailing
+        ]
 
         # Apply same preprocessing to both
         from gait_project.preprocess.signal_cleaning import detrend_signal, remove_mean
@@ -498,7 +508,7 @@ class Phase1Pipeline:
         ax.text(
             0.02,
             0.98,
-            f"Concatenation artifacts removed\nBuffer: ±{self.buffer_time}s",
+            f"Turn excluded; segments analyzed separately\nBuffer: ±{self.buffer_time}s",
             transform=ax.transAxes,
             verticalalignment="top",
             bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
@@ -568,16 +578,29 @@ class Phase1Pipeline:
         """Figure 6: Spectrogram (improved)."""
         fs = self.trial_data.metadata.freq
 
-        # Compute spectrogram
-        freqs, times, Sxx = compute_spectrogram(
-            self.signal_no_turn, fs=fs, nperseg=256, noverlap=128
-        )
-
         fig, ax = plt.subplots(figsize=(12, 6))
-
-        # Plot spectrogram in dB scale
-        Sxx_db = 10 * np.log10(Sxx + 1e-10)
-        im = ax.pcolormesh(times, freqs, Sxx_db, shading="gouraud", cmap="viridis")
+        spectra = []
+        for segment in self.prepared.segments:
+            part = self.signal_no_turn[segment]
+            freqs, times, power = compute_spectrogram(
+                part,
+                fs=fs,
+                nperseg=min(256, len(part)),
+                noverlap=min(128, len(part) - 1),
+            )
+            spectra.append(
+                (
+                    freqs,
+                    times + self.time_no_turn[segment.start],
+                    10 * np.log10(power + 1e-10),
+                )
+            )
+        low = min(power.min() for _, _, power in spectra)
+        high = max(power.max() for _, _, power in spectra)
+        for freqs, times, power in spectra:
+            im = ax.pcolormesh(
+                times, freqs, power, shading="auto", cmap="viridis", vmin=low, vmax=high
+            )
 
         # Limit frequency range to gait frequencies
         ax.set_ylim([0, 5])
@@ -632,31 +655,7 @@ class Phase1Pipeline:
         # Save to CSV
         csv_path = self.tables_dir / "frequency_summary.csv"
 
-        # Append if file exists, otherwise create new
-        if csv_path.exists():
-            df_existing = pd.read_csv(csv_path)
-
-            # Check for duplicates before appending
-            # Unique key: (subject, trial, signal)
-            duplicate_mask = (
-                (df_existing["subject"] == results["subject"])
-                & (df_existing["trial"] == results["trial"])
-                & (df_existing["signal"] == results["signal"])
-            )
-
-            if duplicate_mask.any():
-                warnings.warn(
-                    f"Duplicate entry found for ({results['subject']}, {results['trial']}, "
-                    f"{results['signal']}). Replacing old entry with new one."
-                )
-                # Remove old entry
-                df_existing = df_existing[~duplicate_mask]
-
-            # Append new entry
-            df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-            df_combined.to_csv(csv_path, index=False)
-        else:
-            df_new.to_csv(csv_path, index=False)
+        upsert_csv(df_new, csv_path, ["subject", "trial", "signal"])
 
         print(f"   Results saved to: {csv_path}")
 
