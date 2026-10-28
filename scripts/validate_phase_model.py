@@ -214,7 +214,8 @@ def main():
         ["git", "rev-parse", "HEAD"], cwd=project_root, capture_output=True, text=True
     )
     manifest = {
-        "study_version": "0.1.0",
+        "study_version": "0.2.0",
+        "package_version": version("gait-project"),
         "status": "running",
         "started_at": datetime.now().astimezone().isoformat(),
         "git_commit": git.stdout.strip(),
@@ -234,6 +235,7 @@ def main():
             "ekf_observation_std": 0.15,
             "ekf_frequency_diffusion_hz": 0.025,
             "warmup_cycles": 2,
+            "bootstrap_samples_reused": False,
             "event_matching_tolerance_s": 0.15,
             "simulation_repetitions": args.simulation_repetitions,
             "max_subjects_per_cohort": args.max_subjects_per_cohort,
@@ -356,6 +358,8 @@ def main():
                 audit, participants, simulations, example, output / "figures"
             )
         summary = {
+            "study_version": manifest["study_version"],
+            "package_version": manifest["package_version"],
             "trials_prepared": len(trials),
             "trials_compared": int(pairs.trial.nunique()),
             "participants": len(folds),

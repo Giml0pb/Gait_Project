@@ -32,7 +32,7 @@ uv run gait-lab demo --scenario morphology_drift --no-figures
 uv run python -m gait_project demo
 ```
 
-The demo exports time series, metrics, plots, identified Fourier coefficients and a manifest with parameters, dependency versions and source hashes. A separate synthetic calibration record supplies the observation template; the test record supplies observations and a known evaluation reference.
+The demo exports time series, metrics, plots, identified Fourier coefficients and a manifest with parameters, dependency versions and source hashes. A separate synthetic calibration record supplies the observation template; the test record supplies observations and a known evaluation reference. The report also checks phase-uncertainty coverage and innovations over 20 seeded runs per waveform condition, with unchanged EKF noise settings.
 
 [Checked-in numerical example](examples/synthetic/summary.json) · [Example metrics](examples/synthetic/metrics.csv)
 
@@ -53,8 +53,10 @@ The two feet are estimated independently. The model does not impose bilateral sy
 
 - **The largest spectral peak is not necessarily the stride frequency.** A harmonic-rich waveform can place most power at twice the cycle frequency. The demo and benchmark make that ambiguity observable.
 - **Prediction and correction are tested separately.** Missing samples cause prediction-only EKF steps. Hilbert abstains inside those gaps; coverage and prediction error are reported separately.
+- **Initialization data are used once.** Two nominal cycles initialize phase, amplitude and bias. Recursive corrections start on the next sample; the bootstrap interval has no reported estimates.
 - **A model can track the wrong interpretation.** Waveform changes can bias a fixed observation template while true bilateral timing stays constant. The mismatch scenario deliberately exposes this failure.
-- **The more complex method is not assumed to win.** In the optional 1,356-trial benchmark, Hilbert on the fundamental had lower median relative-phase error than this EKF: 8.89° versus 13.59°. The result is retained and documented.
+- **Small residuals do not guarantee correct uncertainty.** The [uncertainty check](src/gait_project/demo/uncertainty.py) reports phase coverage, innovation NIS and lag-1 correlation. A low NIS can coexist with strongly biased phase estimates.
+- **The more complex method is not assumed to win.** In the optional 1,356-trial benchmark, Hilbert on the fundamental had lower median relative-phase error than this EKF: 8.89° versus 13.27°. The result is retained and documented.
 
 The synthetic demo has a known phase reference. The clinical-data benchmark uses algorithm-derived events and measures agreement with that reference, rather than establishing clinical accuracy. See the [protocol](docs/phase_validation_protocol.md) for split design, support masks and limitations.
 

@@ -168,3 +168,38 @@ def plot_case(summary, data, destination):
                 ax.set_xlabel("Time (s)")
         fig.savefig(Path(destination), dpi=150, facecolor="white")
         plt.close(fig)
+
+
+def plot_uncertainty_check(runs, destination):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from gait_project.demo.uncertainty import CONDITIONS
+
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4), layout="constrained")
+    fig.suptitle(
+        "Uncertainty diagnostics · fixed EKF noise settings", fontweight="bold"
+    )
+    for ax, metric, title, reference in zip(
+        axes,
+        ("phase_mae_deg", "coverage_95", "mean_nis"),
+        ("Phase MAE (degrees)", "Coverage of local ±1.96σ", "Mean innovation NIS"),
+        (None, 0.95, 1.0),
+    ):
+        for index, (scenario, label) in enumerate(CONDITIONS.items()):
+            values = runs.loc[runs.scenario == scenario, metric].to_numpy()
+            positions = index + np.linspace(-0.12, 0.12, len(values))
+            ax.scatter(positions, values, color=(BLUE, ORANGE)[index], alpha=0.65, s=18)
+            ax.plot([index - 0.2, index + 0.2], [np.median(values)] * 2, color="black")
+        if reference is not None:
+            ax.axhline(reference, color=PURPLE, linestyle="--", linewidth=1)
+        if metric == "coverage_95":
+            ax.set_ylim(0, 1.05)
+        ax.set_title(title, fontsize=11)
+        ax.set_xticks([0, 1], list(CONDITIONS.values()), fontsize=9)
+        ax.grid(axis="y", alpha=0.25)
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.savefig(Path(destination), dpi=150, facecolor="white")
+    plt.close(fig)

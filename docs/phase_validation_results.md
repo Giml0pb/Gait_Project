@@ -1,6 +1,6 @@
 # Resultados de la validación exploratoria de fase
 
-_Ejecución completa del 26 de octubre de 2026; modelo experimental 0.1.0_
+_Ejecución completa del 28 de octubre de 2026; estudio 0.2.0 y paquete 0.3.1_
 
 ---
 
@@ -14,9 +14,9 @@ La simulación confirma que una variación de forma de señal puede producir una
 
 Se prepararon y compararon 1.356 ensayos de 260 personas, con cinco particiones por participante, manteniendo juntas todas sus sesiones. Las plantillas se aprendieron con las otras 208 personas de cada partición. No hubo excepciones de procesamiento. Dos ensayos de una persona sana no alcanzaron un segundo de soporte bilateral común tras el calentamiento: las distribuciones de fase relativa contienen 1.354 ensayos y 259 personas. La evaluación por pie dispone de 2.709 observaciones pie-ensayo por método, de las 2.712 disponibles; sus resúmenes de eventos incluyen 260 personas.
 
-En la ejecución de este estudio, la suite completa superó 55 pruebas. También se comprobaron formato, lint, ausencia de participantes compartidos entre entrenamiento y evaluación, hashes de las fuentes y conservación de los resultados numéricos bilaterales al añadir el emparejamiento de eventos. Los resultados del pipeline consolidado permanecen en sus rutas originales.
+La suite completa supera 67 pruebas. Se comprobaron formato, lint, separación de participantes, hashes de las fuentes y ausencia de reutilización de las muestras de inicialización en las correcciones. Esta ejecución repite el benchmark completo tras corregir esa inicialización, sin reajustar los parámetros de ruido. Los resultados del pipeline consolidado permanecen en sus rutas originales.
 
-El [protocolo](phase_validation_protocol.md) y la [formulación del EKF](phase_state_space.md) describen parámetros, unidades, máscaras, calibración e identificabilidad. La primera corrida completa, previa a incorporar las métricas de eventos, se conserva en `outputs/phase_validation_initial/`; las salidas definitivas están en `outputs/phase_validation/`.
+El [protocolo](phase_validation_protocol.md) y la [formulación del EKF](phase_state_space.md) describen parámetros, unidades, máscaras, calibración e identificabilidad. Las salidas de esta ejecución están en `outputs/phase_validation_v031/`; los agregados y figuras publicados corresponden a esa misma ejecución.
 
 ## 📈 Frecuencia y significado del ciclo
 
@@ -36,9 +36,9 @@ El error de fase relativa se calcula en las mismas muestras para los tres métod
 | --- | ---: | ---: |
 | Hilbert dominante | 9.28° | 5.98–16.53° |
 | Hilbert fundamental | 8.89° | 6.71–13.98° |
-| EKF armónico | 13.59° | 8.46–28.23° |
+| EKF armónico | 13.27° | 9.58–24.42° |
 
-La diferencia central entre ambas versiones de Hilbert es pequeña para este criterio. En personas sanas, la mediana descriptiva incluso favorece al comparador dominante (6,19° frente a 7,26°). No se concluye que elegir la fundamental mejore todas las métricas o todos los subgrupos. El EKF tiene una distribución más dispersa: su percentil 75 alcanza 28,23°.
+La diferencia central entre ambas versiones de Hilbert es pequeña para este criterio. En personas sanas, la mediana descriptiva incluso favorece al comparador dominante (6,19° frente a 7,26°). No se concluye que elegir la fundamental mejore todas las métricas o todos los subgrupos. El EKF tiene una distribución más dispersa: su percentil 75 alcanza 24,42°.
 
 ![Distribuciones del error por participante](assets/validation_participant_phase_error.png)
 
@@ -48,11 +48,11 @@ Los apoyos predichos se emparejan uno a uno con una tolerancia de 150 ms. Las ci
 | --- | ---: | ---: |
 | Hilbert dominante | 0.634 | 20.9 ms |
 | Hilbert fundamental | 0.975 | 28.9 ms |
-| EKF armónico | 0.962 | 21.9 ms |
+| EKF armónico | 0.972 | 23.1 ms |
 
-El pico dominante ofrece un error pequeño entre apoyos emparejados, pero genera 38.026 cruces adicionales en el conjunto evaluado. Este ejemplo muestra por qué informar sólo de proximidad al apoyo más cercano ocultaría el recuento incorrecto de ciclos. La fundamental reduce los falsos positivos a 3.622 y el EKF a 3.937; esos recuentos agregados no deben tratarse como observaciones independientes de personas.
+El pico dominante ofrece un error pequeño entre apoyos emparejados, pero genera 38.028 cruces adicionales en el conjunto evaluado. Este ejemplo muestra por qué informar sólo de proximidad al apoyo más cercano ocultaría el recuento incorrecto de ciclos. La fundamental reduce los falsos positivos a 3.622 y el EKF a 3.274; esos recuentos agregados no deben tratarse como observaciones independientes de personas.
 
-El EKF presenta 12 inicializaciones marcadas como ambiguas. En 47 observaciones pie-ensayo se alcanzó algún límite de frecuencia y en 549 algún límite de amplitud. Son contactos en cualquier momento del tramo, incluidos los transitorios; no equivalen a 47 o 549 fallos clínicos.
+El EKF presenta 12 inicializaciones marcadas como ambiguas. En 126 observaciones pie-ensayo se alcanzó algún límite de frecuencia y en 256 algún límite de amplitud. Son contactos en cualquier momento del seguimiento recursivo, incluidos sus transitorios; no equivalen a 126 o 256 fallos clínicos.
 
 ## 🧪 Simulación con fase conocida
 
@@ -60,11 +60,11 @@ Se ejecutaron 200 combinaciones de escenario, forma de onda, ruido y semilla, ev
 
 | Escenario | Hilbert fundamental | EKF armónico |
 | --- | ---: | ---: |
-| Asimetría fija | 2.73° | 0.73° |
-| Cambio de forma, coordinación constante | 3.44° | 14.91° |
-| Deriva de coordinación | 2.95° | 0.86° |
-| Modulación de frecuencia | 3.50° | 1.18° |
-| Pérdida temporal de sensor | 3.77° | 0.73° |
+| Asimetría fija | 2.73° | 0.77° |
+| Cambio de forma, coordinación constante | 3.44° | 15.62° |
+| Deriva de coordinación | 2.95° | 0.94° |
+| Modulación de frecuencia | 3.50° | 1.77° |
+| Pérdida temporal de sensor | 3.77° | 0.74° |
 
 El modelo funciona bien cuando su plantilla es adecuada, pero el cambio de forma lo perjudica aun sin alterar la coordinación real. En los huecos sintéticos de 1,2 s, el EKF mantiene una predicción con error mediano de fase de 0,77°. Hilbert se abstiene dentro del hueco: esa ausencia se informa como cobertura cero y no como error cero.
 
@@ -92,7 +92,7 @@ No está justificado sustituir ahora esa referencia sencilla por este EKF para e
 
 ## 🔁 Artefactos y reproducción
 
-Las tablas, cuatro figuras, el resumen y el manifiesto están en `outputs/phase_validation/`. Los archivos se generan localmente y no se versionan con los datos. La tabla de errores está vacía; los casos sin soporte se identifican explícitamente en las tablas comparativas. Las 55 pruebas de esa etapa incluyen recuperación de frecuencia, ambigüedad armónica, predicción durante huecos, ausencia de filtración entre participantes y emparejamiento uno a uno de eventos.
+Las tablas, cuatro figuras, el resumen y el manifiesto están en `outputs/phase_validation_v031/`. Los archivos se generan localmente y no se versionan con los datos. La tabla de errores está vacía; los casos sin soporte se identifican explícitamente en las tablas comparativas. Las pruebas incluyen recuperación de frecuencia, ambigüedad armónica, predicción durante huecos, inicialización separada, cobertura de incertidumbre, ausencia de filtración entre participantes y emparejamiento uno a uno de eventos.
 
 ```bash
 uv run python scripts/validate_phase_model.py --output-dir outputs/phase_validation_replicate

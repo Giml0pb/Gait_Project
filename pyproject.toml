@@ -1,6 +1,6 @@
 [project]
 name = "gait-project"
-version = "0.3.0"
+version = "0.3.1"
 description = "Signal processing and harmonic extended Kalman filtering for gait state estimation"
 readme = "README.md"
 requires-python = ">=3.11"

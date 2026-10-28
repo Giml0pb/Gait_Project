@@ -33,6 +33,7 @@ a{color:var(--blue)}.footnote{font-size:13px}.details{display:flex;gap:20px;flex
 <p class="footnote">Errors use identical observed support after initialization and filter-edge exclusion. Gap prediction is evaluated separately. The dominant-band comparator tracks an oscillation that may be a harmonic, so its phase is a different cycle variable.</p>
 <div class="details"><a id="download-image">Download figure</a><a id="download-data">Inspect time series (CSV)</a><a href="summary.json">Benchmark summary</a><a href="manifest.json">Run manifest</a></div>
 </section>
+__UNCERTAINTY__
 <footer>All observations and references in this report are synthetic. Local covariance bands are EKF approximations, not calibrated confidence guarantees. The model is deliberately challenged by waveform changes; a complex estimator is not assumed to outperform its baseline.</footer>
 </main><script id="demo-data" type="application/json">__PAYLOAD__</script><script>
 const cases=JSON.parse(document.getElementById('demo-data').textContent);
@@ -65,9 +66,46 @@ def write_report(result, output_dir):
         for case in cases
     )
     payload = json.dumps(cases, allow_nan=False).replace("</", "<\\/")
+    check = result["uncertainty_check"]
+    rows = []
+    for condition in check["conditions"]:
+        cells = [html.escape(condition["label"])]
+        for name in ("phase_mae_deg", "coverage_95", "mean_nis", "innovation_lag1"):
+            values = condition["metrics"][name]
+            scale, unit = (100, "%") if name == "coverage_95" else (1, "")
+            if values["median"] is None:
+                cells.append("Undefined")
+            else:
+                cells.append(
+                    f"{scale * values['median']:.2f}{unit} "
+                    f"({scale * values['p10']:.2f}–{scale * values['p90']:.2f})"
+                )
+        rows.append("<tr>" + "".join(f"<td>{cell}</td>" for cell in cells) + "</tr>")
+    picture = base64.b64encode((output_dir / "uncertainty.png").read_bytes()).decode(
+        "ascii"
+    )
+    uncertainty = (
+        '<section class="panel"><h2>Does the uncertainty match the errors?</h2>'
+        f"<p>{check['repetitions_per_condition']} seeded runs per condition, using "
+        "right-foot signals and independent calibration records. Noise settings "
+        "are held fixed. Each point is one run; black bars show medians.</p>"
+        f'<img class="figure" src="data:image/png;base64,{picture}" '
+        'alt="Per-run phase error, uncertainty coverage and innovation NIS">'
+        '<div class="table-scroll"><table><thead><tr><th>Waveform</th>'
+        "<th>Phase MAE (°)</th><th>Local 95% coverage</th><th>Mean NIS</th>"
+        "<th>Innovation lag-1 correlation</th></tr></thead><tbody>"
+        + "".join(rows)
+        + '</tbody></table></div><p class="footnote">Values are run medians '
+        "(10th–90th percentiles). Coverage of 95%, mean scalar NIS of 1 and "
+        "uncorrelated innovations are ideal-model references, not pass/fail "
+        "thresholds here. Samples within a run are dependent. A small tracking "
+        "error or NIS alone does not establish calibrated phase uncertainty.</p>"
+        '<a href="uncertainty_runs.csv">Inspect every uncertainty run (CSV)</a></section>'
+    )
     page = (
         TEMPLATE.replace("__SEED__", str(result["parameters"]["seed"]))
         .replace("__BUTTONS__", buttons)
         .replace("__PAYLOAD__", payload)
+        .replace("__UNCERTAINTY__", uncertainty)
     )
     (output_dir / "report.html").write_text(page, encoding="utf-8")

@@ -1,6 +1,6 @@
 {
   "generator": "gait-lab-demo",
-  "package_version": "0.3.0",
+  "package_version": "0.3.1",
   "python": "3.11.14",
   "dependencies": {
     "numpy": "2.4.2",
@@ -14,7 +14,8 @@
     "noise_std": 0.1,
     "second_harmonic_ratio": 3.0,
     "sampling_rate_hz": 25,
-    "duration_s": 24
+    "duration_s": 24,
+    "uncertainty_repetitions": 20
   },
   "scenarios": [
     "fixed_asymmetry",
@@ -31,11 +32,12 @@
     "analysis/aggregation.py": "ced3afec9601bb8dd2c97b13bd32599035ca39b8e44f62c61a67b6139ffb726c",
     "analysis/circular_statistics.py": "7d089e179d34a4771c8cdca2588378d2574a55d319e2c78857adde1e06e1e399",
     "analysis/subject_analysis.py": "07114c37bdc15d93e366744108a46bb2c802ad4feefdb368feecfa3fe342938f",
-    "cli.py": "3f151e990afe2ea8b45adc254e378afdabf8b75e7a76474da8c9f383d6485c07",
+    "cli.py": "45e7654ab161da6c1339a3b372232d943e29074487d772967c9836f15e8cf455",
     "demo/__init__.py": "06f1d4cc082a40c4241cd9aaf8b0c37174f3fae8f8aa275f0071d25278324481",
-    "demo/plots.py": "18b1dbd37d7fb25b9ae089d916c3a0d2eb89bdfb21a23db1d3d59dd933f90dfa",
-    "demo/report.py": "258c90d756f95cfa2f17efe65ff68e825c2298a2605e5c4263eebbffa5af3037",
-    "demo/run.py": "2da606b0ce26ca6562aa1637559fbfb25ae7b8cc2f79cee06176fd84693f0620",
+    "demo/plots.py": "da31cc30d4964bd9f25f5c42c408c88cc263869d508bc90c61f7089ffe4ee36b",
+    "demo/report.py": "ed17473b9be284729f8213626c408d01c5f1936758e9b18ad7cbd92e08bdb676",
+    "demo/run.py": "b7f6c9b1eaf7c8d4f11365437f6ee44c010b3759905292ecb14705be5fc3561e",
+    "demo/uncertainty.py": "e7b7e4e18b00ce1bf18c71b65d8d60e767ada44535ef3efb02487051259bc20d",
     "diagnostics/__init__.py": "deebabb117944688033e3e79aca94ef15477fddc41130c4ff189cb7511d62754",
     "diagnostics/phase_diagnostics.py": "9e8810d236995de1bc5f957fd6227228bc8df5b45503b948bb6d2cf6d4b4a1c4",
     "io/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -62,7 +64,7 @@
     "spectral/dominant_frequency.py": "1ea78bbc9c61a91da89309c98ec96b53eb32131c0ba5caf06329ef8f5df35e9e",
     "spectral/psd_analysis.py": "2fc17b563c80db01f06f4ebcf7f1c3f56c12abb2ff5a8965519a2eb3a83a302e",
     "state_space/__init__.py": "7bb1f976292b793519d86a1a89672d8ab41c54789783fd17328799b262e8bf1f",
-    "state_space/harmonic_ekf.py": "64c888bd7b820c671b2df25e1bdf174b3a5690217b4c01d306f194bad28c4d6c",
+    "state_space/harmonic_ekf.py": "0d89939faa0b6914d86be5312a0b9e6126fcbb5172fdbab590dec610c14efd80",
     "synchronization/__init__.py": "8bc819b74b4cc9e6b0e84a55d53728d174f4360dddc6b2382a18fc5310f10b46",
     "synchronization/phase_sync.py": "60006a50747ee0809e03ae72727867f95d07670c54e32493dcb329bcef10fc7e",
     "synchronization/temporal_sync.py": "b64dd89d18d0f68626d6679512f55b6cb47c7e8d194617a8a9f876147de0aeb3",

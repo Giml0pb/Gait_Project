@@ -18,9 +18,15 @@ def main():
     example = ROOT / "examples/synthetic"
     assets.mkdir(parents=True, exist_ok=True)
     example.mkdir(parents=True, exist_ok=True)
-    for name in ("summary.json", "metrics.csv", "manifest.json"):
+    for name in (
+        "summary.json",
+        "metrics.csv",
+        "manifest.json",
+        "uncertainty_runs.csv",
+    ):
         shutil.copyfile(args.demo_dir / name, example / name)
     shutil.copyfile(args.demo_dir / "sensor_dropout.png", assets / "ekf_demo.png")
+    shutil.copyfile(args.demo_dir / "uncertainty.png", assets / "uncertainty_check.png")
     if args.study_dir:
         study = ROOT / "examples/phase_validation"
         study.mkdir(parents=True, exist_ok=True)

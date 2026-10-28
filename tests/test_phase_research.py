@@ -85,6 +85,26 @@ def test_ekf_tracks_known_phase_and_predicts_during_dropout():
     assert result.variance_phase[274] > result.variance_phase[249]
     assert np.nanmin(result.variance_phase) >= 0
     assert not result.initialization_ambiguity
+    stop = result.initialization_stop
+    assert np.isnan(result.phase[:stop]).all()
+    assert np.isnan(result.innovation[:stop]).all()
+    assert result.update_count == np.isfinite(values[stop:]).sum()
+    assert result.update_count + result.missing_prediction_count == len(values) - stop
+    assert np.isnan(result.innovation[250:275]).all()
+    assert np.isnan(result.innovation_variance[250:275]).all()
+    assert np.isfinite(result.innovation[275])
+
+
+def test_initialization_only_record_has_no_recursive_updates():
+    template = HarmonicTemplate([0, 1, 0.1])
+    time = np.arange(40) / 25
+    result = estimate_phase_ekf(
+        template.evaluate(2 * np.pi * 0.9 * time), 25, 0.9, template
+    )
+    assert result.initialization_stop == len(time)
+    assert result.update_count == result.missing_prediction_count == 0
+    assert np.isnan(result.phase).all()
+    assert not result.score_mask.any()
 
 
 def test_ekf_reports_even_harmonic_ambiguity():

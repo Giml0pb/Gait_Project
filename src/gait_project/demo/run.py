@@ -15,6 +15,7 @@ from gait_project.research.phase_reference import circular_mae_deg
 from gait_project.research.phase_simulation import SCENARIOS, simulate_case
 from gait_project.research.phase_validation import METHODS, estimate_methods
 from gait_project.state_space.harmonic_ekf import fit_template, normalized_signal
+from gait_project.demo.uncertainty import run_uncertainty_check
 
 
 DESCRIPTIONS = {
@@ -133,7 +134,13 @@ def compute_case(scenario, seed=42, noise=0.1, harmonic_ratio=3.0):
 
 
 def run_demo(
-    output_dir, scenario="all", seed=42, noise=0.1, harmonic_ratio=3.0, figures=True
+    output_dir,
+    scenario="all",
+    seed=42,
+    noise=0.1,
+    harmonic_ratio=3.0,
+    figures=True,
+    uncertainty_repetitions=20,
 ):
     output_dir = Path(output_dir)
     manifest_path = output_dir / "manifest.json"
@@ -158,9 +165,17 @@ def run_demo(
 
             plot_case(summary, frame, output_dir / f"{name}.png")
     write_csv_atomic(pd.DataFrame(metrics), output_dir / "metrics.csv")
+    uncertainty, uncertainty_runs = run_uncertainty_check(
+        seed, noise, harmonic_ratio, uncertainty_repetitions
+    )
+    write_csv_atomic(uncertainty_runs, output_dir / "uncertainty_runs.csv")
+    if figures:
+        from gait_project.demo.plots import plot_uncertainty_check
+
+        plot_uncertainty_check(uncertainty_runs, output_dir / "uncertainty.png")
     result = {
         "generator": "gait-lab-demo",
-        "demo_version": 1,
+        "demo_version": 2,
         "parameters": {
             "seed": seed,
             "calibration_seed": seed + 1_000_003,
@@ -168,8 +183,10 @@ def run_demo(
             "second_harmonic_ratio": harmonic_ratio,
             "sampling_rate_hz": 25,
             "duration_s": 24,
+            "uncertainty_repetitions": uncertainty_repetitions,
         },
         "cases": summaries,
+        "uncertainty_check": uncertainty,
     }
     (output_dir / "summary.json").write_text(
         json.dumps(result, indent=2, allow_nan=False) + "\n"

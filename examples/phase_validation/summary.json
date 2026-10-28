@@ -1,4 +1,6 @@
 {
+  "study_version": "0.2.0",
+  "package_version": "0.3.1",
   "trials_prepared": 1356,
   "trials_compared": 1356,
   "participants": 260,
@@ -14,17 +16,17 @@
   "participant_median_relative_phase_error_deg": {
     "dominant_hilbert": 9.275779272497093,
     "fundamental_hilbert": 8.887789822539975,
-    "harmonic_ekf": 13.593800199912527
+    "harmonic_ekf": 13.268858982342085
   },
   "participant_median_event_f1": {
     "dominant_hilbert": 0.6343536239894977,
     "fundamental_hilbert": 0.9745212593313859,
-    "harmonic_ekf": 0.9624530075187969
+    "harmonic_ekf": 0.9715298885511652
   },
   "participant_median_matched_event_mae_s": {
     "dominant_hilbert": 0.020877529344822357,
     "fundamental_hilbert": 0.028920049141485115,
-    "harmonic_ekf": 0.02194013746835389
+    "harmonic_ekf": 0.023086801714154507
   },
   "scored_trials_by_method": {
     "dominant_hilbert": 1354,

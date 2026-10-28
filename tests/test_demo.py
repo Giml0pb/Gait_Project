@@ -40,12 +40,18 @@ def test_output_guard_preserves_unrelated_files(tmp_path):
 
 
 def test_numerical_export_is_dataset_free_and_repeatable(tmp_path):
-    result = run_demo(tmp_path, scenario="sensor_dropout", figures=False)
+    result = run_demo(
+        tmp_path, scenario="sensor_dropout", figures=False, uncertainty_repetitions=2
+    )
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     assert manifest["parameters"]["seed"] != manifest["parameters"]["calibration_seed"]
     assert manifest["source_sha256"]
     assert len(pd.read_csv(tmp_path / "metrics.csv")) == 3
-    assert result == run_demo(tmp_path, scenario="sensor_dropout", figures=False)
+    assert result == run_demo(
+        tmp_path, scenario="sensor_dropout", figures=False, uncertainty_repetitions=2
+    )
+    assert len(pd.read_csv(tmp_path / "uncertainty_runs.csv")) == 4
+    assert result["uncertainty_check"]["noise_parameters_retuned"] is False
     assert not (tmp_path / "report.html").exists()
 
 
@@ -87,6 +93,9 @@ def test_installed_module_exports_self_contained_report(tmp_path):
     assert "data:image/png;base64," in report
     assert '<script src="http' not in report
     assert "Missing sensor observations" in report
+    assert "Does the uncertainty match the errors?" in report
+    assert "Innovation lag-1 correlation" in report
+    assert len(pd.read_csv(destination / "uncertainty_runs.csv")) == 40
     assert (destination / "sensor_dropout.png").stat().st_size > 1000
     assert (
         json.loads((destination / "summary.json").read_text())["parameters"][

@@ -1,6 +1,6 @@
 # Modelo experimental de fase en espacio de estados
 
-_Formulación del prototipo y límites de interpretación — 26 de octubre de 2026_
+_Formulación del prototipo y límites de interpretación — 28 de octubre de 2026_
 
 ---
 
@@ -52,6 +52,8 @@ $$
 
 Se utiliza la actualización de Joseph para la covarianza y se omite la corrección cuando falta una observación. La fase y la incertidumbre siguen evolucionando mediante predicción. La frecuencia se limita al intervalo operativo de 0,25 a 2 Hz y la amplitud al intervalo de 0,05 a 5. Se contabilizan los contactos con estos límites: no deben interpretarse como evidencia fisiológica. La proyección del estado a esos límites tampoco constituye una actualización bayesiana truncada de la covarianza.
 
+La inicialización reserva dos ciclos nominales de señal activa, con un mínimo de dos segundos, para perfilar fase, amplitud y sesgo. El estado ajustado se sitúa en el último instante de ese intervalo; la primera predicción y corrección corresponden a la muestra siguiente. Las muestras reservadas no se corrigen de nuevo y sus salidas permanecen indefinidas. La covarianza inicial en ese límite es una hipótesis operativa fija, no un posterior inferido del ajuste.
+
 ## 📏 Referencia y error
 
 Si $h_i$ y $h_{i+1}$ son apoyos consecutivos del mismo pie, la referencia temporal dentro de ese intervalo se define como
@@ -71,6 +73,22 @@ $$
 $$
 
 El origen de fase de Hilbert se calibra mediante las plantillas de entrenamiento. No se ajusta una rotación usando los errores del ensayo evaluado. Las métricas reales expresan concordancia con la convención por eventos; las métricas sintéticas comparan con la fase generativa conocida.
+
+## 🧪 Diagnóstico de incertidumbre
+
+Antes de corregir cada observación disponible se registran la innovación $\nu_k$ y su varianza $S_k$:
+
+$$
+\nu_k=y_k-h(\hat x_k^-),\qquad
+S_k=H_kP_k^-H_k^\top+R,\qquad
+\operatorname{NIS}_k=\frac{\nu_k^2}{S_k}.
+$$
+
+Aquí $\hat x_k^-$ y $P_k^-$ son el estado y la covarianza predichos. Para las muestras sintéticas evaluables, la cobertura de fase es la fracción cuyo error angular absoluto está dentro de $1{,}96\sqrt{P_{k,\phi\phi}}$, usando la covarianza posterior. Las innovaciones del intervalo de inicialización y de observaciones ausentes quedan indefinidas y no se cuentan como ceros.
+
+La demo compara forma estable y cambiante con 20 semillas por condición y registros de calibración separados, sin reajustar $Q$, $R$ o la covarianza inicial. Resume cobertura, NIS medio y correlación de orden uno de innovaciones estandarizadas mediante medianas y percentiles 10–90 entre ejecuciones. La correlación sólo une muestras observadas adyacentes.
+
+El 95% de cobertura, NIS medio de uno y ausencia de correlación son referencias bajo hipótesis ideales, no garantías ni umbrales de aceptación del prototipo. Las simulaciones no reproducen exactamente su modelo estocástico y las muestras temporales son dependientes. Un NIS pequeño puede acompañar una fase sesgada cuando el filtro absorbe una deformación de la señal; por ello se contrasta también con la fase conocida. Estos diagnósticos no calibran la distribución conjunta de los cuatro estados ni representan múltiples ramas de fase.
 
 ## ⚠️ Identificabilidad y límites
 

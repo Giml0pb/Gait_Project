@@ -4,7 +4,7 @@
 
 | Document | Purpose |
 | --- | --- |
-| [Technical walkthrough](technical_walkthrough.md) | Follow the runnable demo through DSP, identification, EKF updates and tests |
+| [Technical walkthrough](technical_walkthrough.md) | Follow the runnable demo through DSP, identification, EKF updates, uncertainty diagnostics and tests |
 | [EKF formulation — ES](phase_state_space.md) | State, dynamics, Jacobian, covariance assumptions and identifiability |
 | [Validation protocol — ES](phase_validation_protocol.md) | Participant splits, synthetic stress cases, masks and metrics |
 | [Benchmark results — ES](phase_validation_results.md) | Full numerical comparison, retained failures and interpretation |

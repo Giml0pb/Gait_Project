@@ -1,6 +1,6 @@
 # Aggregate dataset benchmark
 
-`summary.json` records the aggregate output of the optional phase-validity study over 1,356 trials from 260 participants. It contains no participant-level signals or identifiers.
+`summary.json` records the aggregate output of the optional phase-validity study over 1,356 trials from 260 participants, rerun with package 0.3.1 and disjoint bootstrap/correction samples. It contains no participant-level signals or identifiers.
 
 To reproduce the benchmark, obtain the source dataset described in [the dataset guide](../../docs/dataset_structure.md), then run:
 

@@ -3,6 +3,7 @@
 The states are phase (rad), angular frequency (rad/s), positive amplitude and
 bias. Feet are estimated independently; no antiphase or coupling is imposed.
 Initialization profiles the first two nominal cycles of active observations.
+Those samples are reserved for initialization and never corrected a second time.
 The benchmark is offline: its initial frequency uses the full observed signal.
 """
 
@@ -85,6 +86,9 @@ class EKFResult:
     missing_prediction_count: int
     frequency_bound_hits: int
     amplitude_bound_hits: int
+    initialization_stop: int
+    innovation: np.ndarray
+    innovation_variance: np.ndarray
 
 
 def normalized_signal(values):
@@ -116,10 +120,10 @@ def estimate_phase_ekf(
     values = normalized_signal(values)
     if not np.isfinite(fs) or fs <= 0 or not 0.25 <= initial_frequency_hz <= 2.0:
         raise ValueError("Invalid sampling rate or initial frequency")
-    if (
-        observation_std <= 0
-        or min(frequency_diffusion, amplitude_diffusion, bias_diffusion) < 0
-    ):
+    noise = np.array(
+        [observation_std, frequency_diffusion, amplitude_diffusion, bias_diffusion]
+    )
+    if not np.isfinite(noise).all() or observation_std <= 0 or (noise[1:] < 0).any():
         raise ValueError("Noise standard deviations must be valid")
     n = len(values)
     finite = np.isfinite(values)
@@ -155,9 +159,11 @@ def estimate_phase_ekf(
         errors[best], 1e-12
     )
     amplitude, bias = parameters[best]
-    state = np.array(
-        [candidates[best], 2 * np.pi * initial_frequency_hz, amplitude, bias]
-    )
+    # Place the fitted state at the LAST initialization sample. Corrections
+    # start at `stop`, after one prediction; the bootstrap data are not reused.
+    omega = 2 * np.pi * initial_frequency_hz
+    state = np.array([candidates[best] + omega * times[-1], omega, amplitude, bias])
+    # Operational uncertainty at the bootstrap boundary, not a fitted posterior.
     covariance = np.diag([0.3**2, (2 * np.pi * 0.1) ** 2, 0.3**2, 0.2**2])
     dt = 1 / fs
     transition = np.eye(4)
@@ -172,14 +178,14 @@ def estimate_phase_ekf(
     )
     identity = np.eye(4)
     phases, frequencies, variances = [np.full(n, np.nan) for _ in range(3)]
+    innovations, innovation_variances = [np.full(n, np.nan) for _ in range(2)]
     updates, predictions, frequency_hits, amplitude_hits = 0, 0, 0, 0
     orders = np.arange(1, (len(template.coefficients) + 1) // 2)
     cos_coeff = template.coefficients[1::2]
     sin_coeff = template.coefficients[2::2]
-    for index in range(start, n):
-        if index > start:
-            state = transition @ state
-            covariance = transition @ covariance @ transition.T + process
+    for index in range(stop, n):
+        state = transition @ state
+        covariance = transition @ covariance @ transition.T + process
         if finite[index]:
             phi, _, amplitude, bias = state
             angles = orders * phi
@@ -191,8 +197,11 @@ def estimate_phase_ekf(
             innovation_variance = float(
                 jacobian @ covariance @ jacobian + observation_std**2
             )
+            innovation = values[index] - prediction
+            innovations[index] = innovation
+            innovation_variances[index] = innovation_variance
             gain = covariance @ jacobian / innovation_variance
-            state += gain * (values[index] - prediction)
+            state += gain * innovation
             correction = identity - np.outer(gain, jacobian)
             # Joseph update preserves covariance symmetry/positive semidefiniteness.
             covariance = (
@@ -223,4 +232,7 @@ def estimate_phase_ekf(
         predictions,
         frequency_hits,
         amplitude_hits,
+        stop,
+        innovations,
+        innovation_variances,
     )

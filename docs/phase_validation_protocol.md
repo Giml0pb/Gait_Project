@@ -1,6 +1,6 @@
 # Validación exploratoria de la fase de marcha
 
-_Protocolo y alcance de la comparación — 26 de octubre de 2026_
+_Protocolo y alcance de la comparación — 28 de octubre de 2026_
 
 ---
 
@@ -47,7 +47,7 @@ Las señales se recortan al intervalo bilateral finito y se analizan antes y des
 
 El EKF estima cada pie por separado, sin imponer antifase ni una fuerza de acoplamiento. Utiliza actualización de covarianza de Joseph, predicción cuando falta una observación y límites operativos de frecuencia y amplitud cuyos contactos se contabilizan. El ruido de observación normalizado es 0,15; la difusión de frecuencia es 0,025 Hz por raíz de segundo. No se afirma que esas covarianzas estén calibradas.
 
-La inicialización perfila una rejilla de fases durante dos ciclos nominales de señal activa, con un mínimo de dos segundos, y estima amplitud y sesgo por mínimos cuadrados. Se excluye ese calentamiento de los tres métodos. También se excluye un segundo en cada extremo de los segmentos observados, incluidos los bordes de huecos sintéticos. La frecuencia inicial usa la señal observada completa y el remuestreo es fuera de línea: esta es una comparación **offline**, aunque la actualización del EKF sea recursiva.
+La inicialización perfila una rejilla de fases durante dos ciclos nominales de señal activa, con un mínimo de dos segundos, y estima amplitud y sesgo por mínimos cuadrados. Ese intervalo se reserva para el ajuste: las correcciones recursivas comienzan en la muestra siguiente, sin reutilizar sus observaciones. Se excluye ese calentamiento de los tres métodos. También se excluye un segundo en cada extremo de los segmentos observados, incluidos los bordes de huecos sintéticos. La frecuencia inicial usa la señal observada completa y el remuestreo es fuera de línea: esta es una comparación **offline**, aunque la actualización del EKF sea recursiva.
 
 La formulación matemática, las unidades y las limitaciones de identificabilidad están en [phase_state_space.md](phase_state_space.md).
 

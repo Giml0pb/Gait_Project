@@ -69,6 +69,10 @@ def main(argv=None):
         print(
             f"{case['scenario']}: EKF relative phase MAE={metrics['relative_phase_mae_deg']:.2f} deg"
         )
+    print(
+        "Uncertainty check: "
+        f"{result['uncertainty_check']['repetitions_per_condition']} runs per waveform condition"
+    )
     print(f"Results: {arguments.output_dir.resolve()}")
     if not arguments.no_figures:
         print(f"Open {arguments.output_dir.resolve() / 'report.html'} in your browser")
