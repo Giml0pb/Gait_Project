@@ -17,6 +17,8 @@ uv run gait-lab demo
 
 Open **`outputs/demo/report.html`** in a browser. The self-contained report lets you switch between five scenarios: stable coordination, changing frequency, changing bilateral timing, missing observations and waveform mismatch. It embeds its figures and needs no network connection to view them.
 
+On Linux, open it from the terminal with `xdg-open outputs/demo/report.html`.
+
 ![EKF tracking through missing sensor observations](docs/assets/ekf_demo.png)
 
 ```bash
@@ -108,4 +110,4 @@ src/gait_project/
 └── cli.py             Installed gait-lab command
 ```
 
-[Documentation index](docs/README.md) · [Technical walkthrough](docs/technical_walkthrough.md) · [Historical notes](docs/archive/README.md)
+[Documentation index](docs/README.md) · [Technical walkthrough](docs/technical_walkthrough.md)

@@ -10,7 +10,6 @@ dependencies = [
     "pandas>=3.0.0",
     "pydantic>=2.12.5",
     "scipy>=1.17.0",
-    "seaborn>=0.13.0",
 ]
 
 [project.scripts]
@@ -37,18 +36,6 @@ dev = [
     "ruff>=0.15.1",
 ]
 
-[tool.ruff]
-extend-exclude = [
-    "scripts/test_*.py",
-    "scripts/diagnose_*.py",
-    "scripts/verify_*.py",
-    "scripts/compare_before_after_correction.py",
-    "scripts/reprocess_with_temporal_metrics.py",
-    "scripts/validate_phase1_snr_hypothesis.py",
-    "scripts/validate_phase2_issue.py",
-    "scripts/validate_pipeline.py",
-    "scripts/validate_temporal_metrics.py",
-]
 # Exclude E402 (module level import not at top) for scripts
 # Scripts need sys.path.insert before importing project modules
 [tool.ruff.lint.per-file-ignores]

@@ -1,8 +1,7 @@
 """
 Visualization module for gait analysis.
 
-This module provides plotting functions for signals, spectra, phase analysis,
-and group comparisons.
+This module provides plotting functions for signals, spectra and phase analysis.
 """
 
 from gait_project.viz.signal_plots import (
@@ -21,11 +20,6 @@ from gait_project.viz.phase_plots import (
     plot_plv_temporal,
     plot_phase_portrait,
 )
-from gait_project.viz.group_plots import (
-    plot_group_boxplot,
-    plot_group_distributions,
-    plot_metric_comparison,
-)
 
 __all__ = [
     # Signal plots
@@ -41,8 +35,4 @@ __all__ = [
     "plot_phase_difference",
     "plot_plv_temporal",
     "plot_phase_portrait",
-    # Group plots
-    "plot_group_boxplot",
-    "plot_group_distributions",
-    "plot_metric_comparison",
 ]
