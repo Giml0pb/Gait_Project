@@ -95,16 +95,16 @@ def generate_figures(audit, participants, simulations, example, destination):
                 label=group,
             )
     for ax, title in zip(
-        axes, ("Pico dominante del pipeline", "Fundamental seleccionada por señal")
+        axes, ("Pipeline dominant peak", "Signal-selected fundamental")
     ):
         x = np.linspace(0, 2, 100)
-        ax.plot(x, x, "k--", linewidth=1, label="Relación 1:1")
-        ax.plot(x, 2 * x, color="0.5", linestyle=":", linewidth=1, label="Relación 2:1")
+        ax.plot(x, x, "k--", linewidth=1, label="1:1 ratio")
+        ax.plot(x, 2 * x, color="0.5", linestyle=":", linewidth=1, label="2:1 ratio")
         ax.set(
             xlim=(0, 2),
             ylim=(0, 3.5),
-            xlabel="Frecuencia de zancada según eventos (Hz)",
-            ylabel="Frecuencia seleccionada (Hz)",
+            xlabel="Event-derived stride frequency (Hz)",
+            ylabel="Selected frequency (Hz)",
             title=title,
         )
         ax.spines[["top", "right"]].set_visible(False)
@@ -112,7 +112,7 @@ def generate_figures(audit, participants, simulations, example, destination):
     fig.savefig(destination / "frequency_reference.png", dpi=180)
     plt.close(fig)
     methods = ("dominant_hilbert", "fundamental_hilbert", "harmonic_ekf")
-    labels = ("Hilbert dominante", "Hilbert fundamental", "EKF armónico")
+    labels = ("Dominant-band Hilbert", "Fundamental-band Hilbert", "Harmonic EKF")
     fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
     values = [
         participants.loc[participants.method == m, "relative_phase_mae_deg"].dropna()
@@ -120,8 +120,8 @@ def generate_figures(audit, participants, simulations, example, destination):
     ]
     ax.boxplot(values, tick_labels=labels, showfliers=False)
     ax.set(
-        ylabel="Error absoluto de fase relativa (grados)",
-        title="Referencia por eventos; media de ensayos por participante",
+        ylabel="Absolute relative-phase error (degrees)",
+        title="Event reference; trial means within participants",
     )
     ax.spines[["top", "right"]].set_visible(False)
     fig.savefig(destination / "participant_phase_error.png", dpi=180)
@@ -141,8 +141,8 @@ def generate_figures(audit, participants, simulations, example, destination):
             ax.bar(x + (index - 1) * 0.25, means, width=0.25, label=label)
         ax.set_xticks(x, groups, rotation=15, ha="right")
         ax.set(
-            ylabel="Mediana del error de fase relativa (grados)",
-            title="Simulación: fase conocida; variación de armónicos y ruido",
+            ylabel="Median relative-phase error (degrees)",
+            title="Known-phase simulation: varying harmonics and noise",
         )
         ax.legend(fontsize=8)
         fig.savefig(destination / "simulation_phase_error.png", dpi=180)
@@ -155,7 +155,7 @@ def generate_figures(audit, participants, simulations, example, destination):
             np.rad2deg(reference - np.pi),
             "k",
             linewidth=2,
-            label="Desviación real de la antifase",
+            label="True deviation from antiphase",
         )
         for method, label in zip(methods, labels):
             shift = np.pi if method == "dominant_hilbert" else 0
@@ -163,12 +163,12 @@ def generate_figures(audit, participants, simulations, example, destination):
             error = np.rad2deg(np.angle(np.exp(1j * (difference - np.pi))))
             ax.plot(time, error, linewidth=1, alpha=0.8, label=label)
         ax.axvspan(
-            0, 3, color="0.9", label="Inicialización; no interpretar como evaluación"
+            0, 3, color="0.9", label="Initialization; excluded from interpretation"
         )
         ax.set(
-            xlabel="Tiempo (s)",
-            ylabel="Desviación de la antifase (grados)",
-            title="Cambio de forma de señal con coordinación constante",
+            xlabel="Time (s)",
+            ylabel="Deviation from antiphase (degrees)",
+            title="Changing waveform with constant coordination",
         )
         ax.legend(fontsize=8)
         fig.savefig(destination / "morphology_counterexample.png", dpi=180)

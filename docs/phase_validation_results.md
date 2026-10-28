@@ -1,104 +1,108 @@
-# Resultados de la validación exploratoria de fase
+# Exploratory phase-validation results
 
-_Ejecución completa del 28 de octubre de 2026; estudio 0.2.0 y paquete 0.3.1_
+_Complete run: 28 October 2026; study 0.2.0, package 0.3.1_
 
 ---
 
-## 📋 Resultado principal
+## 📋 Main finding
 
-La selección espectral del pipeline sigue habitualmente un componente próximo al segundo armónico de la zancada. La selección de fundamental basada sólo en señal mejora la correspondencia de frecuencia y el recuento de apoyos. El EKF armónico implementado no mejora el criterio principal de concordancia de fase relativa respecto a Hilbert fundamental. Su menor error temporal entre eventos emparejados es un resultado secundario y no compensa automáticamente los eventos perdidos o sobrantes.
+The baseline's dominant spectral peak usually tracks a component near the second stride harmonic. Signal-only fundamental selection improves frequency agreement and heel-strike counting. The implemented harmonic EKF does not improve the primary relative-phase agreement metric over fundamental-band Hilbert. Its smaller timing error among matched events is secondary and does not automatically compensate for missed or extra events.
 
-La simulación confirma que una variación de forma de señal puede producir una aparente alteración de coordinación, incluso con fase generativa constante entre pies. Esto demuestra una vulnerabilidad metodológica; no demuestra que las diferencias reales entre diagnósticos sean artefactos.
+Simulation also shows that waveform changes can produce apparent coordination changes while generative bilateral timing stays constant. This identifies a methodological vulnerability; it does not establish that real diagnostic-group differences are artifacts.
 
-## 🔬 Alcance y verificaciones
+## 🔬 Scope and checks
 
-Se prepararon y compararon 1.356 ensayos de 260 personas, con cinco particiones por participante, manteniendo juntas todas sus sesiones. Las plantillas se aprendieron con las otras 208 personas de cada partición. No hubo excepciones de procesamiento. Dos ensayos de una persona sana no alcanzaron un segundo de soporte bilateral común tras el calentamiento: las distribuciones de fase relativa contienen 1.354 ensayos y 259 personas. La evaluación por pie dispone de 2.709 observaciones pie-ensayo por método, de las 2.712 disponibles; sus resúmenes de eventos incluyen 260 personas.
+The study prepared and compared 1,356 trials from 260 participants using five participant-separated folds, keeping each person's sessions together. Templates used the other 208 participants in each fold. No processing exceptions occurred. Two trials from one healthy participant had less than one second of shared bilateral support after initialization: relative-phase distributions therefore contain 1,354 trials and 259 participants. Foot-level evaluation has 2,709 scored foot-trial observations per method out of 2,712 available; participant-level event summaries include all 260 people.
 
-La suite completa supera 67 pruebas. Se comprobaron formato, lint, separación de participantes, hashes de las fuentes y ausencia de reutilización de las muestras de inicialización en las correcciones. Esta ejecución repite el benchmark completo tras corregir esa inicialización, sin reajustar los parámetros de ruido. Los resultados del pipeline consolidado permanecen en sus rutas originales.
+The complete test suite passes 67 tests. Checks cover formatting, lint, participant separation, source hashes and disjoint bootstrap/correction samples. This run repeats the full benchmark after the initialization correction without retuning noise settings. Established baseline outputs are preserved.
 
-El [protocolo](phase_validation_protocol.md) y la [formulación del EKF](phase_state_space.md) describen parámetros, unidades, máscaras, calibración e identificabilidad. Las salidas de esta ejecución están en `outputs/phase_validation_v031/`; los agregados y figuras publicados corresponden a esa misma ejecución.
+The [protocol](phase_validation_protocol.md) and [EKF formulation](phase_state_space.md) describe settings, units, masks, calibration and identifiability. Local outputs are under `outputs/phase_validation_v031/`; committed aggregate results and numerical figure data come from that run.
 
-## 📈 Frecuencia y significado del ciclo
+## 📈 Frequency and cycle interpretation
 
-En las 2.712 observaciones pie-ensayo, el cociente mediano pico dominante/frecuencia por eventos es **2.0117**. Para la fundamental seleccionada desde la señal, el cociente mediano es **0.9996**. 2686 de 2.712 observaciones quedan dentro de ±10% de la frecuencia por eventos. Dos se marcaron con soporte débil de la fundamental.
+Across 2,712 foot-trial observations, the median dominant-peak/event-stride-frequency ratio is **2.0117**. The median signal-selected-fundamental ratio is **0.9996**; 2,686 observations lie within ±10% of event-derived stride frequency. Two observations have weak fundamental support.
 
-El intervalo entre percentiles 5 y 95 del cociente es 1,781–2,207 para el pico dominante y 0,973–1,035 para la fundamental. El resultado es compatible con seguir principalmente el segundo armónico en el método previo. No basta con dividir toda frecuencia por dos: el componente dominante puede cambiar de orden entre señales o condiciones.
+The 5th–95th percentile ratio range is 1.781–2.207 for the dominant peak and 0.973–1.035 for the fundamental. This supports the interpretation that the older method mainly tracks the second harmonic. Simply dividing every dominant frequency by two would be inappropriate because harmonic order can change across signals and conditions.
 
-La interpretación previa de una señal bilateral en fase como prueba de orientación especular debe revisarse: una antifase a nivel de zancada también se convierte en fase coincidente al observar su segundo armónico. Un desplazamiento fijo de pi no resuelve esa ambigüedad de definición.
+A previous interpretation of bilateral in-phase signals as evidence of mirrored sensor orientation needs reconsideration: stride-level antiphase also becomes in-phase at the second harmonic. A fixed pi shift does not resolve that cycle-definition ambiguity.
 
-![Comparación de frecuencias con la referencia por eventos](assets/validation_frequency_reference.png)
+![Frequency comparison with event-derived reference](assets/validation_frequency_reference.png)
 
-## 📏 Concordancia con los eventos
+## 📏 Agreement with event references
 
-El error de fase relativa se calcula en las mismas muestras para los tres métodos. Primero se promedia dentro de cada participante y después se resume entre las 259 personas evaluables. La tabla presenta mediana y rango intercuartílico; no es una prueba de superioridad estadística.
+Relative-phase error uses identical scored samples for all three methods. Trial errors are averaged within each participant, then summarized across the 259 evaluable people. The table reports median and interquartile range, not a statistical superiority test.
 
-| Método | Error relativo mediano | Percentiles 25–75 |
+| Method | Median relative-phase error | 25th–75th percentiles |
 | --- | ---: | ---: |
-| Hilbert dominante | 9.28° | 5.98–16.53° |
-| Hilbert fundamental | 8.89° | 6.71–13.98° |
-| EKF armónico | 13.27° | 9.58–24.42° |
+| Dominant-band Hilbert | 9.28° | 5.98–16.53° |
+| Fundamental-band Hilbert | 8.89° | 6.71–13.98° |
+| Harmonic EKF | 13.27° | 9.58–24.42° |
 
-La diferencia central entre ambas versiones de Hilbert es pequeña para este criterio. En personas sanas, la mediana descriptiva incluso favorece al comparador dominante (6,19° frente a 7,26°). No se concluye que elegir la fundamental mejore todas las métricas o todos los subgrupos. El EKF tiene una distribución más dispersa: su percentil 75 alcanza 24,42°.
+The central difference between Hilbert variants is small for this criterion. In healthy participants, the descriptive median even favors the dominant comparator (6.19° versus 7.26°). Fundamental selection is not claimed to improve every metric or subgroup. The EKF distribution is wider, with a 75th percentile of 24.42°.
 
-![Distribuciones del error por participante](assets/validation_participant_phase_error.png)
+![Error distributions across participants](assets/validation_participant_phase_error.png)
 
-Los apoyos predichos se emparejan uno a uno con una tolerancia de 150 ms. Las cifras siguientes son medianas entre 260 personas; cada F1 combina falsos positivos, falsos negativos y verdaderos positivos de sus pies y ensayos. El error temporal considera únicamente los eventos emparejados y se pondera por su número dentro de la persona.
+Predicted heel strikes are matched one-to-one within 150 ms. The following values are medians across 260 participants. Each participant's F1 combines false positives, false negatives and true positives over their feet and trials; matched-event timing error is weighted by the number of matched events within that participant.
 
-| Método | F1 de eventos | Error temporal de eventos emparejados |
+| Method | Event F1 | Matched-event timing error |
 | --- | ---: | ---: |
-| Hilbert dominante | 0.634 | 20.9 ms |
-| Hilbert fundamental | 0.975 | 28.9 ms |
-| EKF armónico | 0.972 | 23.1 ms |
+| Dominant-band Hilbert | 0.634 | 20.9 ms |
+| Fundamental-band Hilbert | 0.975 | 28.9 ms |
+| Harmonic EKF | 0.972 | 23.1 ms |
 
-El pico dominante ofrece un error pequeño entre apoyos emparejados, pero genera 38.028 cruces adicionales en el conjunto evaluado. Este ejemplo muestra por qué informar sólo de proximidad al apoyo más cercano ocultaría el recuento incorrecto de ciclos. La fundamental reduce los falsos positivos a 3.622 y el EKF a 3.274; esos recuentos agregados no deben tratarse como observaciones independientes de personas.
+The dominant comparator has small matched-event timing error but produces 38,028 extra crossings. Reporting nearest-event proximity alone would hide the incorrect cycle count. Fundamental selection reduces false positives to 3,622 and the EKF to 3,274. These pooled event counts are not independent participant observations.
 
-El EKF presenta 12 inicializaciones marcadas como ambiguas. En 126 observaciones pie-ensayo se alcanzó algún límite de frecuencia y en 256 algún límite de amplitud. Son contactos en cualquier momento del seguimiento recursivo, incluidos sus transitorios; no equivalen a 126 o 256 fallos clínicos.
+The EKF flags 12 ambiguous initializations. Frequency bounds are reached in 126 foot-trial observations, and amplitude bounds in 256. These count contacts at any point during recursive tracking, including transients; they are not counts of clinical failures.
 
-## 🧪 Simulación con fase conocida
+## 🧪 Known-phase simulation
 
-Se ejecutaron 200 combinaciones de escenario, forma de onda, ruido y semilla, evaluadas con los tres métodos. La plantilla inicial del EKF coincide con el generador sintético: representa una calibración ideal que no existe para cada persona nueva. La tabla resume el error relativo mediano en grados, combinando las cuatro proporciones armónicas y los dos niveles de ruido de cada escenario.
+The study evaluated 200 scenario/waveform/noise/seed combinations with all three methods. Its EKF receives the initial generative template, representing ideal calibration unavailable for every new participant. The table summarizes median relative-phase error in degrees, combining four harmonic ratios and two noise levels per scenario.
 
-| Escenario | Hilbert fundamental | EKF armónico |
+| Scenario | Fundamental-band Hilbert | Harmonic EKF |
 | --- | ---: | ---: |
-| Asimetría fija | 2.73° | 0.77° |
-| Cambio de forma, coordinación constante | 3.44° | 15.62° |
-| Deriva de coordinación | 2.95° | 0.94° |
-| Modulación de frecuencia | 3.50° | 1.77° |
-| Pérdida temporal de sensor | 3.77° | 0.74° |
+| Fixed asymmetry | 2.73° | 0.77° |
+| Changing waveform, fixed coordination | 3.44° | 15.62° |
+| Timing drift | 2.95° | 0.94° |
+| Frequency modulation | 3.50° | 1.77° |
+| Sensor dropout | 3.77° | 0.74° |
 
-El modelo funciona bien cuando su plantilla es adecuada, pero el cambio de forma lo perjudica aun sin alterar la coordinación real. En los huecos sintéticos de 1,2 s, el EKF mantiene una predicción con error mediano de fase de 0,77°. Hilbert se abstiene dentro del hueco: esa ausencia se informa como cobertura cero y no como error cero.
+The model works well when its template is appropriate, but waveform change degrades it even when true coordination is constant. During synthetic 1.2 s gaps, the EKF maintains predictions with median phase error of 0.77°. Hilbert abstains inside gaps; missing predictions are reported as zero coverage rather than zero error.
 
-Los resultados del comparador dominante para todos los escenarios también se publican. Al combinar casos donde domina el primer armónico y casos donde domina el segundo, su desplazamiento fijo derecho de pi puede cambiar la interpretación de fase. Su error global frente a una referencia de zancada mezcla esa diferencia de definición con el error de seguimiento; no se interpreta como una comparación pura de precisión algorítmica.
+Dominant-band results are also retained. Combining first-harmonic-dominant and second-harmonic-dominant cases changes the interpretation of its fixed right-foot pi shift. Its overall stride-reference phase error mixes cycle-definition differences with tracking error and is not a pure algorithmic-accuracy comparison.
 
-![Cambio de forma con coordinación constante](assets/validation_morphology_counterexample.png)
+![Changing waveform with constant coordination](assets/validation_morphology_counterexample.png)
 
-La figura muestra también los transitorios de los bordes; esas muestras no contribuyen a las métricas. Para una observación con sólo armónicos pares, la diferencia máxima entre observar una fase o esa fase más pi fue de 3,33 × 10⁻¹⁶: indistinguible a precisión numérica. Este caso impide identificar de manera única la rama del ciclo a partir de esa observación.
+The plot includes edge transients excluded from scoring. With even-only harmonics, the maximum difference between observations at a phase and that phase plus pi is 3.33 × 10⁻¹⁶: indistinguishable at numerical precision. That observation cannot uniquely identify the half-cycle branch.
 
-## ⚠️ Interpretación y límites
+## ⚠️ Interpretation and limits
 
-Los eventos reales proceden de detectores automáticos del propio dataset.[^dataset] No se ha validado la fase continua contra captura óptica o una plataforma de fuerzas independiente. La interpolación lineal entre apoyos es una referencia temporal útil, pero no define una fase biomecánica verdadera dentro del ciclo.
+Dataset events come from automatic detectors.[^dataset] Continuous phase has not been validated against independent optical motion capture or force-platform measurements. Linear interpolation between heel strikes is a useful timing reference, not biomechanical ground truth throughout the cycle.
 
-Los archivos procesados del dataset ya contienen filtrado e interpolación de algunas pérdidas originales.[^dataset] La prueba de pérdidas de sensor de este estudio es sintética; no demuestra rendimiento frente a pérdidas naturales de los archivos raw. La inicialización y el preprocesamiento del prototipo son offline.
+Processed dataset files already include filtering and interpolation of some original gaps.[^dataset] Synthetic dropout tests do not establish performance on naturally missing raw observations. Prototype initialization and preprocessing are offline.
 
-No se han optimizado los parámetros para conseguir que el EKF gane. Los resultados describen este prototipo y esta plantilla poblacional fija, no un límite de todos los modelos en espacio de estados. Tampoco se ha calibrado su covarianza como incertidumbre clínica. La plantilla poblacional, las diferencias de forma entre personas y la inicialización son explicaciones que necesitan pruebas específicas.
+Parameters were not optimized to obtain an EKF win. Results describe this prototype with a fixed population template, not a limit on state-space models generally. Its covariance is not calibrated as clinical uncertainty. Population-template mismatch, between-person waveform differences and initialization remain possible explanations requiring targeted tests.
 
-El estudio es exploratorio y el problema armónico se observó inicialmente en el mismo dataset. Las particiones controlan el ajuste de plantillas, pero no eliminan esa selección previa de la pregunta. No hay inferencia confirmatoria sobre patología, edad, velocidad o control neural ni estimación de una fuerza de acoplamiento fisiológica.
+The [demo's uncertainty check](technical_walkthrough.md#check-the-uncertainty) separately evaluates known-phase coverage and innovations. Low innovation NIS can coexist with biased phase under waveform change; those diagnostics do not establish clinical calibration.
 
-## 📍 Decisión de trabajo
+This study is exploratory, and the harmonic question arose on the same dataset. Folds control template fitting but do not remove that earlier question-selection step. No confirmatory conclusions are drawn about pathology, age, speed or neural control, and no physiological coupling strength is estimated.
 
-La referencia más defendible para continuar estudiando ciclos y apoyos es la fundamental seleccionada por señal, conservando el pico dominante como medida espectral con significado distinto. La mejora de F1 es clara descriptivamente; la mejora del error relativo central es pequeña y no uniforme entre grupos.
+## 📍 Technical conclusion
 
-No está justificado sustituir ahora esa referencia sencilla por este EKF para estudiar coordinación bilateral. Antes de ampliar su complejidad, conviene comprobar calibración con otras personas y sesiones, analizar residuales de forma e inicialización y evaluar sensibilidad a bandas, máscaras y tolerancia de eventos. Una evaluación clínica posterior debe acotarse a una patología y controlar al menos edad y ritmo. El pipeline consolidado se conserva como referencia; este estudio no modifica automáticamente sus definiciones.
+The signal-selected fundamental is the more defensible reference for stride cycles and heel strikes, while the dominant peak remains a distinct spectral measure. Its F1 improvement is descriptively clear; the central relative-phase improvement is small and varies across groups.
 
-## 🔁 Artefactos y reproducción
+This benchmark does not justify replacing the simpler phase reference with the EKF for bilateral-coordination analysis. It does provide a reproducible comparison, a working recursive estimator and explicit observation-model failures that can be examined technically.
 
-Las tablas, cuatro figuras, el resumen y el manifiesto están en `outputs/phase_validation_v031/`. Los archivos se generan localmente y no se versionan con los datos. La tabla de errores está vacía; los casos sin soporte se identifican explícitamente en las tablas comparativas. Las pruebas incluyen recuperación de frecuencia, ambigüedad armónica, predicción durante huecos, inicialización separada, cobertura de incertidumbre, ausencia de filtración entre participantes y emparejamiento uno a uno de eventos.
+## 🔁 Artifacts and reproduction
+
+Tables, four figures, summary and manifest are generated locally; source signals and participant-level results are not versioned. The processing-error table is empty, and insufficient-support cases are identified explicitly. Tests cover frequency recovery, harmonic ambiguity, gap prediction, separate initialization, uncertainty coverage, participant leakage and one-to-one event matching.
 
 ```bash
 uv run python scripts/validate_phase_model.py --output-dir outputs/phase_validation_replicate
 uv run pytest
 ```
 
-## 🔗 Referencias
+The [committed summary](../examples/phase_validation/summary.json) records aggregate numerical results. The [dataset guide](dataset_structure.md) describes the optional source data.
+
+## 🔗 References
 
 [^dataset]: Voisard et al. (2025). A Dataset of Clinical Gait Signals with Wearable Sensors from Healthy, Neurological, and Orthopedic Cohorts. https://www.nature.com/articles/s41597-025-05959-w

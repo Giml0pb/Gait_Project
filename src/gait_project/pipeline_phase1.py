@@ -182,7 +182,7 @@ class Phase1Pipeline:
         """Compute power spectral density using Welch's method."""
         fs = self.trial_data.metadata.freq
 
-        # Welch parameters as specified in Fase 1
+        # Welch parameters for the spectral baseline
         nperseg = 256
         noverlap = 128
 
@@ -196,7 +196,7 @@ class Phase1Pipeline:
 
     def _estimate_dominant_frequency(self) -> None:
         """Estimate dominant gait frequency and compute spectral SNR."""
-        # Search range as specified in Fase 1
+        # Search range for the spectral baseline
         freq_range = (0.5, 3.0)
 
         # Find dominant frequency

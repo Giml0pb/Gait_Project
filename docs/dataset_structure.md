@@ -1,21 +1,20 @@
-# Estructura del Dataset
+# Dataset guide
 
-Dataset de señales de marcha clínica con sensores inerciales (IMU) en tres cohortes: sanos, neurológicos y ortopédicos.
+Optional clinical gait signals recorded with inertial measurement units (IMUs), covering healthy, neurological and orthopedic cohorts. The synthetic demo runs independently of these data.
 
----
+## Directory layout
 
-## Estructura de directorios
+Place the dataset under `data/raw/dataset/`. The loader's `base_path` points to the nested `data/` directory:
 
-```
+```text
 dataset/
-├── data/                          ← base_path para load_data.py
+├── data/
 │   ├── healthy/
-│   │   └── HS/                    ← Healthy Subject
+│   │   └── HS/
 │   │       ├── HS_1/
-│   │       │   ├── HS_1_1/       ← trial
-│   │       │   ├── HS_1_2/
-│   │       │   └── ...
-│   │       └── HS_2/ ... HS_73/
+│   │       │   ├── HS_1_1/       # Trial
+│   │       │   └── HS_1_2/
+│   │       └── HS_2/
 │   ├── neuro/
 │   │   ├── CIPN/
 │   │   ├── CVA/
@@ -25,125 +24,55 @@ dataset/
 │       ├── ACL/
 │       ├── HOA/
 │       └── KOA/
-└── quick_start/                   ← scripts originales del dataset
-    ├── load_data.py
-    └── plot_data.py
+└── quick_start/                   # Original dataset utilities
 ```
 
----
+## Trial files
 
-## Contenido de cada trial (`HS_1_1/`)
+| File | Contents |
+| --- | --- |
+| `HS_1_1_raw_data_HE.txt` | Head sensor; tab-delimited |
+| `HS_1_1_raw_data_LB.txt` | Lower-back sensor |
+| `HS_1_1_raw_data_LF.txt` | Left-foot sensor |
+| `HS_1_1_raw_data_RF.txt` | Right-foot sensor |
+| `HS_1_1_processed_data.txt` | Synchronized signals from four sensors; 37 columns |
+| `HS_1_1_meta.json` | Participant and trial metadata |
+| `HS_1_1_plot.png` | Dataset gait-event visualization |
 
-| Archivo | Descripción |
-|---|---|
-| `HS_1_1_raw_data_HE.txt` | Sensor cabeza — tab-delimitado (~2000 filas) |
-| `HS_1_1_raw_data_LB.txt` | Sensor lumbar |
-| `HS_1_1_raw_data_LF.txt` | Sensor pie izquierdo |
-| `HS_1_1_raw_data_RF.txt` | Sensor pie derecho |
-| `HS_1_1_processed_data.txt` | Datos sincronizados de los 4 sensores (37 columnas) |
-| `HS_1_1_meta.json` | Metadata del sujeto y del trial |
-| `HS_1_1_plot.png` | Visualización de eventos de marcha |
+Raw files contain `PacketCounter`, `Acc_X/Y/Z`, `Gyr_X/Y/Z` and `Mag_X/Y/Z`. Acceleration is expressed in m/s² and angular velocity in degrees/s. The processed table contains `PacketCounter` and nine columns per sensor: `Acc_X/Y/Z`, `FreeAcc_X/Y/Z` and `Gyr_X/Y/Z`, prefixed by `HE_`, `LB_`, `LF_` or `RF_`. `FreeAcc` denotes gravity-compensated acceleration.
 
----
+## Metadata
 
-## Archivos raw (`*_raw_data_XX.txt`)
+| Fields | Meaning |
+| --- | --- |
+| `subject`, `trial`, `session`, `daysSinceFirstSession` | Participant, recording and session identifiers |
+| `age`, `gender`, `height`, `weight`, `BMI`, `laterality` | Participant descriptors |
+| `group`, `pathology`, `pathologyKey`, `clinicalDeficitSide` | Cohort and clinical descriptors |
+| `evaluationScoreName`, `evaluationScoreValue` | Clinical scale and value, when available |
+| `freq`, `sensor`, `protocol` | Sampling rate, sensor and acquisition protocol |
+| `uturnBoundaries` | Start and end indices of the turn |
+| `leftGaitEvents`, `rightGaitEvents` | Pairs of `[toe_off_idx, heel_strike_idx]` for each foot |
 
-Columnas (tab-delimitado):
+Use `metadata["freq"]` for the sampling rate and convert event indices with that value. The dataset's processed signals already include filtering and interpolation of some original gaps. Event annotations were generated algorithmically and are not independent biomechanical ground truth.[^dataset]
 
-| Columna | Descripción |
-|---|---|
-| `PacketCounter` | Número de paquete secuencial |
-| `Acc_X/Y/Z` | Aceleración en 3 ejes (m/s²) |
-| `Gyr_X/Y/Z` | Velocidad angular en 3 ejes (deg/s) |
-| `Mag_X/Y/Z` | Magnetómetro en 3 ejes |
+## Cohorts and sensors
 
----
+| Group | Key | Cohort |
+| --- | --- | --- |
+| healthy | `HS` | Healthy participants |
+| neuro | `CIPN` | Chemotherapy-induced peripheral neuropathy |
+| neuro | `CVA` | Cerebrovascular accident |
+| neuro | `PD` | Parkinson's disease |
+| neuro | `RIL` | Radiation-induced leukoencephalopathy |
+| ortho | `ACL` | Anterior cruciate ligament |
+| ortho | `HOA` | Hip osteoarthritis |
+| ortho | `KOA` | Knee osteoarthritis |
 
-## Archivo procesado (`*_processed_data.txt`)
+The dataset contains 260 participants: 73 healthy, 143 neurological and 44 orthopedic. Sensor identifiers are `HE` (head), `LB` (lower back), `LF` (left foot) and `RF` (right foot). Participants walk 6–10 m, turn and return; the sampling rate is 100 Hz. Dataset license: CC BY 4.0.[^dataset]
 
-37 columnas: `PacketCounter` + 9 columnas por sensor × 4 sensores.
+## Load a trial in Python
 
-Prefijos: `HE_`, `LB_`, `LF_`, `RF_`
-
-Tipos por sensor: `Acc_X/Y/Z`, `FreeAcc_X/Y/Z` (aceleración sin gravedad), `Gyr_X/Y/Z`
-
----
-
-## Metadata (`*_meta.json`)
-
-```json
-{
-  "subject": "HS_1",
-  "age": 18,
-  "gender": "M",
-  "height": 1.79,
-  "weight": 60.0,
-  "BMI": 18.7,
-  "laterality": "right",
-  "group": "healthy",
-  "pathology": "healthy subject",
-  "pathologyKey": "HS",
-  "clinicalDeficitSide": null,
-  "evaluationScoreName": null,
-  "evaluationScoreValue": null,
-  "session": 1,
-  "daysSinceFirstSession": 0,
-  "trial": 1,
-  "freq": 100.0,
-  "sensor": "MTw Awinda XSens",
-  "protocol": "10.0m - uturn - 10.0m",
-  "TUG": "Not evaluated",
-  "visualGaitAssessment": 0.0,
-  "uturnBoundaries": [1060, 1222],
-  "leftGaitEvents": [[500, 543], [604, 648], "..."],
-  "rightGaitEvents": [[431, 482], [554, 594], "..."]
-}
-```
-
-> Para cohortes neuro/ortho: `evaluationScoreName` y `evaluationScoreValue` contienen la escala clínica usada (ej. `"TNSc (/28)"`).
-
----
-
-## Cohortes y patologías
-
-| Grupo | Clave | Patología |
-|---|---|---|
-| healthy | `HS` | Sujeto sano |
-| neuro | `CIPN` | Neuropatía periférica inducida por quimioterapia |
-| neuro | `CVA` | Accidente cerebrovascular (ictus) |
-| neuro | `PD` | Enfermedad de Parkinson |
-| neuro | `RIL` | Leucoencefalopatía inducida por radiación |
-| ortho | `ACL` | Ligamento cruzado anterior |
-| ortho | `HOA` | Osteoartritis de cadera |
-| ortho | `KOA` | Osteoartritis de rodilla |
-
-**Totales:** 73 sanos · 143 neuro · 44 ortho = **260 pacientes**
-
----
-
-## Abreviaturas de sensores
-
-| Clave | Ubicación |
-|---|---|
-| `HE` | Cabeza (Head) |
-| `LB` | Lumbar (Lower Back) |
-| `LF` | Pie izquierdo (Left Foot) |
-| `RF` | Pie derecho (Right Foot) |
-
----
-
-## Protocolo
-
-- **Recorrido:** entre 6 y 10 m hacia adelante → giro → regreso
-- **Frecuencia:** 100 Hz (10 ms entre muestras)
-- **Eventos de marcha:** `[toe_off_idx, heel_strike_idx]` por paso, para pie izquierdo y derecho
-- **Licencia:** CC BY 4.0
-
-Fuente del protocolo y de las cohortes: [Voisard et al., Scientific Data (2025)](https://www.nature.com/articles/s41597-025-05959-w).
-
-## Carga desde Python
-
-La ruta de entrada apunta a `data/` dentro del dataset. Las funciones de [load_data.py](../src/gait_project/io/load_data.py) permiten explorar sus niveles y cargar un ensayo:
+The functions in [load_data.py](../src/gait_project/io/load_data.py) expose the dataset hierarchy:
 
 ```python
 from pathlib import Path
@@ -157,25 +86,27 @@ metadata = trial["metadata"]
 fs = metadata["freq"]
 ```
 
-| Función | Resultado |
+| Function | Result |
 | --- | --- |
-| `load_bdd(base_path)` | Grupos, cohortes y participantes disponibles |
-| `load_cohort(base_path, cohort_name)` | Grupo y diccionario de participantes con sus ensayos |
-| `load_patient(base_path, patient_name)` | Ruta del participante y nombres de sus ensayos |
-| `load_trial(base_path, trial_name)` | Señales originales, señales procesadas y metadatos |
+| `load_bdd(base_path)` | Available groups, cohorts and participants |
+| `load_cohort(base_path, cohort_name)` | Group and participant-to-trial mapping |
+| `load_patient(base_path, patient_name)` | Participant path and trial names |
+| `load_trial(base_path, trial_name)` | Raw signals, processed signals and metadata |
 
-`include_raw=False` evita cargar los cuatro archivos de sensores originales cuando sólo se necesitan las señales procesadas. Los comandos para un ensayo, el procesamiento completo y el estudio EKF se encuentran en el [README](../README.md#optional-dataset-benchmark). Cada ejecución del dataset debe usar una carpeta de salida nueva.
+`include_raw=False` skips the four original sensor files when only processed signals are needed. The [README](../README.md#optional-dataset-benchmark) provides single-trial, batch and EKF-study commands. Use a fresh output directory for each dataset run. Source data and participant-level outputs are excluded from Git.
 
-## Convenciones del baseline
+## Baseline processing conventions
 
-El pipeline espectral y de Hilbert conserva estas reglas de procesamiento:
+The spectral/Hilbert baseline follows these rules:
 
-- Recorta el relleno no finito de los extremos al intervalo bilateral común; rechaza huecos internos sin interpolarlos
-- Procesa por separado los tramos anterior y posterior al giro, conservando los tiempos del registro original y excluyendo bordes de filtrado
-- Calcula ventanas y tasas sobre el tiempo observable; sólo cuenta saltos entre muestras válidas adyacentes
-- Valida las métricas antes de exportarlas, actualiza filas por clave y escribe cada tabla de forma atómica con un único proceso escritor
-- Agrega direcciones de fase mediante medias circulares e identifica la mezcla de sesiones de un participante
+- Trim nonfinite edge padding to the common bilateral interval; reject internal gaps without interpolation
+- Process pre-turn and post-turn segments independently, preserve original timestamps and exclude filter edges
+- Compute windows and rates on observable time; count phase jumps only between adjacent valid samples
+- Validate metrics before export, update rows by key and write each table atomically with a single writer
+- Use circular means for phase directions and identify aggregation across participant sessions
 
-Las señales procesadas de entrada ya incluyen el tratamiento del dataset original. La frecuencia dominante puede corresponder a un armónico: los nombres históricos de cadencia, zancada y antifase requieren esa cautela al interpretarse. `phase_slip_rate` mide saltos abruptos de la fase filtrada y no detecta necesariamente una deriva gradual de un ciclo.
+Dominant frequency can represent a harmonic. Historical cadence, stride and antiphase metric names require that caveat. `phase_slip_rate` counts abrupt filtered-phase jumps and need not detect gradual drift by a full cycle.
 
-Estas convenciones verifican procesamiento y consistencia numérica. La referencia de eventos es algorítmica y los resultados no establecen exactitud clínica. El [protocolo de comparación](phase_validation_protocol.md) y sus [resultados](phase_validation_results.md) describen la selección de fundamental, la separación por participante y las limitaciones de la evaluación.
+These conventions establish processing behavior and numerical consistency. The [comparison protocol](phase_validation_protocol.md) and [results](phase_validation_results.md) explain fundamental selection, participant separation and limits on interpretation; they do not establish clinical accuracy.
+
+[^dataset]: Voisard et al. (2025). A Dataset of Clinical Gait Signals with Wearable Sensors from Healthy, Neurological, and Orthopedic Cohorts. https://www.nature.com/articles/s41597-025-05959-w

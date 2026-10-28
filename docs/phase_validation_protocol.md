@@ -1,85 +1,85 @@
-# Validación exploratoria de la fase de marcha
+# Exploratory gait-phase validation
 
-_Protocolo y alcance de la comparación — 28 de octubre de 2026_
+_Comparison protocol and scope — 28 October 2026_
 
 ---
 
-## 🎯 Pregunta
+## 🎯 Question
 
-¿Cuánto depende la medida de coordinación bilateral de seguir el pico dominante de la señal, en vez del ciclo de zancada? El objetivo inmediato es comprobar el significado de la variable estimada y el comportamiento de tres estimadores. La existencia de diferencias entre diagnósticos no se considera confirmación de un mecanismo fisiológico.
+How much does measured bilateral coordination depend on tracking the dominant spectral peak rather than the stride cycle? This study checks the meaning of the estimated variable and the behavior of three estimators. Differences between diagnostic groups are not taken as evidence of a physiological mechanism.
 
-El problema de los armónicos se detectó explorando este mismo dataset. Por tanto, este estudio es exploratorio; la separación por participantes evita filtración en el ajuste de plantillas, pero no transforma una hipótesis generada sobre estos datos en una prueba confirmatoria.
+The harmonic issue was identified while exploring this dataset. Participant separation prevents leakage when fitting templates, but does not turn a question developed on these data into a confirmatory hypothesis test.
 
-## 🔬 Diseño
+## 🔬 Design
 
-Se conservan sin sobrescribir el pipeline 0.2.0 y sus salidas. La comparación se ejecuta con `scripts/validate_phase_model.py`, genera tablas y figuras propias e incluye manifiesto, semilla y hashes de código y entradas.
+The established spectral/Hilbert baseline and its outputs are preserved. The comparison runs through `scripts/validate_phase_model.py`, producing separate tables, figures and a manifest with seeds, settings, source hashes and input hashes.
 
 ```mermaid
 flowchart TB
-    accTitle: Comparación de estimadores de fase
-    accDescr: Las personas se separan para aprender plantillas y evaluar fases con referencias de eventos que no entran en la estimación de esas mismas personas.
-    data["Señales y eventos originales"] --> subjects["Separar por participante"]
-    subjects --> training["Ajustar plantillas con otras personas"]
-    subjects --> signals["Seleccionar frecuencias desde señales"]
-    training --> estimation["Estimar ambas fases independientemente"]
+    accTitle: Phase estimator comparison
+    accDescr: Participants are separated for template training and phase evaluation; held-out event references enter scoring only.
+    data["Source signals and events"] --> subjects["Split by participant"]
+    subjects --> training["Fit templates on other participants"]
+    subjects --> signals["Select frequencies from signals"]
+    training --> estimation["Estimate each foot independently"]
     signals --> estimation
-    estimation --> scoring["Comparar en tiempos comunes"]
-    data --> reference["Construir referencia por apoyos"]
+    estimation --> scoring["Compare on shared time support"]
+    data --> reference["Build heel-strike reference"]
     reference --> scoring
-    scoring --> summaries["Agregar ensayos dentro de personas"]
+    scoring --> summaries["Average trials within participants"]
 ```
 
-Se utilizan cinco particiones determinadas por semilla y estratificadas por patología. Todas las sesiones y los ensayos de una persona permanecen juntos. Las plantillas de cada partición se ajustan exclusivamente con eventos y señales de las otras personas: primero se promedian coeficientes entre ensayos de la misma persona, y después entre personas. No se ajustan hiperparámetros mediante las anotaciones del grupo evaluado. El piloto con dos personas por cohorte sirve para verificar la ejecución; no se presenta como evidencia independiente ni se usan sus errores para optimizar el EKF.
+Five seeded folds are stratified by pathology. All sessions and trials from one participant stay together. Templates for each fold use signals and events from the other participants: coefficients are averaged first across trials within each person, then across people. Hyperparameters are not optimized against held-out annotations. A two-participants-per-cohort pilot checks execution only and is not presented as independent validation or used to tune the EKF.
 
-La frecuencia inicial y la selección de armónicos se calculan sin consultar los eventos del ensayo evaluado. Los eventos de ese ensayo sólo intervienen al calcular las métricas. Esta distinción también se comprueba con una prueba que altera las anotaciones de la persona excluida sin cambiar la plantilla de entrenamiento.
+Initial frequency and harmonic selection use the observed signal without consulting held-out trial events. Those events enter evaluation only. A regression test changes held-out annotations and verifies that the training template is unchanged.
 
-## ⚙️ Métodos
+## ⚙️ Methods
 
-| Método | Definición |
+| Method | Definition |
 | --- | --- |
-| Hilbert dominante | Selección de pico entre 0,5 y 3 Hz con Welch de 256 muestras a la frecuencia original; conserva el desplazamiento derecho de pi de la convención histórica |
-| Hilbert fundamental | Selección de frecuencia entre 0,25 y 2 Hz mediante suma de potencia de tres armónicos, con preferencia mínima por soporte en la fundamental; fase extraída alrededor de esa frecuencia |
-| EKF armónico | Estado de fase, frecuencia angular, amplitud positiva y sesgo; observación periódica con tres armónicos y plantilla aprendida en otras personas |
+| Dominant-band Hilbert | Welch dominant peak between 0.5 and 3 Hz, using 256-sample windows at the original sampling rate; retains the historical right-foot shift of pi |
+| Fundamental-band Hilbert | Frequency between 0.25 and 2 Hz selected by summed power at three harmonics, with a small preference for fundamental support; Hilbert phase extracted around that frequency |
+| Harmonic EKF | Phase, angular frequency, positive amplitude and offset states; three-harmonic periodic observation template trained on other participants |
 
-Las fases de Hilbert se calibran a un origen compartido mediante los coeficientes de las plantillas de entrenamiento: primer armónico para la fundamental y segundo para el dominante. El comparador dominante conserva la selección de banda y la convención histórica, pero no reproduce exactamente los CSV anteriores: hay remuestreo y una máscara común de evaluación. Una fase del segundo armónico y una fase de zancada son magnitudes distintas; un error grande entre ellas evidencia esa diferencia de definición y no demuestra por sí solo que un algoritmo esté mal implementado.
+Hilbert phase origins are calibrated from training-template coefficients: the first harmonic for the fundamental comparator and the second for the dominant comparator. The latter preserves historical band selection and phase convention, but does not exactly reproduce old CSV outputs because this study resamples and applies a shared scoring mask. Second-harmonic phase and stride phase are different cycle variables; a large error between them does not by itself show an implementation defect.
 
-Las señales se recortan al intervalo bilateral finito y se analizan antes y después del giro de forma independiente. Se remuestrean a 25 Hz con filtrado antialias para el estudio. El pico dominante se selecciona previamente a la frecuencia original. La suma armónica utiliza espectros con ventanas largas; el relleno de ceros interpola la rejilla espectral sin aumentar su resolución independiente. La fracción de potencia en la fundamental se exporta; valores inferiores al 5% se marcan como soporte débil, sin descartarlos de manera oculta.
+Signals are trimmed to the common finite bilateral interval and processed separately before and after the turn. The study resamples to 25 Hz with antialias filtering; the dominant peak is selected beforehand at the original rate. Harmonic selection uses long spectral windows. Zero-padding interpolates the frequency grid without increasing independent spectral resolution. Fundamental power fraction is exported; support below 5% is flagged without silently excluding the record.
 
-El EKF estima cada pie por separado, sin imponer antifase ni una fuerza de acoplamiento. Utiliza actualización de covarianza de Joseph, predicción cuando falta una observación y límites operativos de frecuencia y amplitud cuyos contactos se contabilizan. El ruido de observación normalizado es 0,15; la difusión de frecuencia es 0,025 Hz por raíz de segundo. No se afirma que esas covarianzas estén calibradas.
+The EKF treats feet independently without imposed antiphase or coupling. It uses the Joseph covariance update, prediction-only steps for missing observations, and counted contacts with operational frequency/amplitude bounds. Normalized observation-noise standard deviation is 0.15; frequency diffusion is 0.025 Hz per square root of second. These covariances are not assumed calibrated.
 
-La inicialización perfila una rejilla de fases durante dos ciclos nominales de señal activa, con un mínimo de dos segundos, y estima amplitud y sesgo por mínimos cuadrados. Ese intervalo se reserva para el ajuste: las correcciones recursivas comienzan en la muestra siguiente, sin reutilizar sus observaciones. Se excluye ese calentamiento de los tres métodos. También se excluye un segundo en cada extremo de los segmentos observados, incluidos los bordes de huecos sintéticos. La frecuencia inicial usa la señal observada completa y el remuestreo es fuera de línea: esta es una comparación **offline**, aunque la actualización del EKF sea recursiva.
+Initialization profiles a phase grid over two nominal active-signal cycles, with a minimum of two seconds, and fits amplitude and offset by least squares. Those observations are reserved for initialization; recursive corrections start at the next sample. The bootstrap interval is excluded from all three estimators' scores. One second is also excluded at each observed-segment edge, including synthetic gaps. Initial frequency uses the full observed signal and resampling is offline: recursive updates do not make this a real-time comparison.
 
-La formulación matemática, las unidades y las limitaciones de identificabilidad están en [phase_state_space.md](phase_state_space.md).
+The [EKF formulation](phase_state_space.md) defines equations, units and identifiability limits.
 
-## 📏 Referencias y métricas
+## 📏 References and metrics
 
-Cada intervalo entre dos apoyos consecutivos del mismo pie define un ciclo de referencia, con fase que avanza linealmente entre ambos apoyos. No se interpola entre giros ni fuera de ciclos completos. Esta fase es una convención temporal por eventos; no establece la trayectoria de una fase biomecánica única dentro de cada zancada.
+Consecutive same-foot heel strikes define one reference cycle with phase progressing linearly between them. The reference does not interpolate across turns or outside complete cycles. It is an event-based timing convention, not a unique biomechanical phase trajectory.
 
-Los eventos del dataset se obtuvieron automáticamente mediante algoritmos de detección, no mediante una referencia experimental independiente para cada registro.[^dataset] Por ello, los errores reales se interpretan como concordancia con esa referencia. Sólo las simulaciones proporcionan una fase generativa conocida.
+Dataset events were detected algorithmically rather than independently measured for every recording.[^dataset] Dataset errors therefore express agreement with that reference. Only simulations supply known generative phase.
 
-Los apoyos se predicen mediante cruces crecientes de la fase por múltiplos de un ciclo y se emparejan uno a uno con los eventos anotados dentro de 150 ms. Los cruces sobrantes cuentan como falsos positivos, y los eventos no emparejados como falsos negativos. Se publica F1 junto con el error temporal de los eventos emparejados; ese error por sí solo podría ocultar duplicaciones de ciclo. El umbral de 150 ms es operativo y debe someterse a sensibilidad, no se propone como límite clínico.
+Predicted heel strikes are increasing phase crossings of integer cycles. They are matched one-to-one with annotations within 150 ms. Unmatched predictions are false positives and unmatched observed reference events are false negatives. F1 is reported alongside matched-event timing error, which alone could hide duplicate cycles. The 150 ms tolerance is operational and is not proposed as a clinical threshold.
 
-Las métricas principales son el cociente entre frecuencia seleccionada y frecuencia de zancada por eventos, y el error angular absoluto de la fase relativa. Se calculan sobre las mismas muestras para los tres estimadores, con al menos un segundo de soporte común. Se publican los tamaños de soporte y los casos no evaluables. Las tablas incluyen también el error de fase por pie, PLV y su referencia por eventos. Los ensayos se promedian dentro de cada participante antes de resumir distribuciones; no se tratan las 1.356 grabaciones como 1.356 personas independientes.
+Primary metrics are selected-frequency/event-stride-frequency ratio and absolute circular relative-phase error. All three estimators use the same scored samples, requiring at least one second of shared support. Support sizes and unscorable records are reported. Foot-level phase error, PLV and event-reference PLV are also exported. Trials are averaged within participants before summarizing distributions; 1,356 recordings are not treated as 1,356 independent people.
 
-No se usan los errores reales para decidir que el EKF debe ganar. No se prueban diferencias clínicas con valores p ni se atribuyen efectos a una patología: edad, ritmo, sensor y composición diagnóstica siguen siendo posibles explicaciones alternativas.
+No diagnostic-group p-values are used to claim clinical discrimination. Age, rhythm, sensor effects and diagnostic composition remain possible alternative explanations. Held-out errors are not used to force an EKF advantage.
 
-## 🧪 Simulaciones
+## 🧪 Simulations
 
-Se combinan cinco escenarios —asimetría fija, cambio de forma sin cambio de coordinación, deriva temporal, modulación de frecuencia y pérdida de sensor— con cuatro proporciones de segundo armónico (0,5; 1; 3; 6), dos niveles de ruido y cinco semillas por combinación: 200 casos y tres métodos por caso.
+Five scenarios—fixed asymmetry, changing waveform at fixed coordination, timing drift, frequency modulation and sensor dropout—are combined with four second-harmonic ratios (0.5, 1, 3, 6), two noise levels and five seeds per combination: 200 cases evaluated by three methods.
 
-En la simulación el EKF recibe la plantilla generativa inicial conocida: representa una calibración ideal y favorece al modelo respecto al problema de personas nuevas. El escenario de cambio de forma rompe intencionadamente esa hipótesis. La predicción durante pérdidas se evalúa por separado, con error y cobertura: Hilbert se abstiene en el hueco y no se compara su error inexistente con un cero.
+The study's simulated EKF receives the known initial generative template. This represents ideal calibration and favors it relative to a new-participant setting. Waveform change deliberately breaks that assumption. The runnable demo separately fits its template on an independent synthetic calibration record. Gap prediction is evaluated separately with error and coverage: missing Hilbert predictions are not scored as zero error.
 
-Se incluye además una comprobación exacta de identificabilidad: cuando sólo hay armónicos pares, dos fases separadas por media zancada producen la misma observación. Una covarianza pequeña o una señal reconstruida con precisión no resuelven esa ambigüedad. El EKF señala inicializaciones ambiguas, pero mantiene una aproximación unimodal.
+An exact identifiability check verifies that even-only harmonics produce identical observations at phases separated by half a stride. Small covariance or accurate signal reconstruction does not remove that ambiguity. The EKF flags ambiguous initialization while retaining a unimodal approximation.
 
-## 🔁 Reproducción
+## 🔁 Reproduction
 
 ```bash
-uv run python scripts/validate_phase_model.py --output-dir outputs/phase_validation
+uv run python scripts/validate_phase_model.py --output-dir outputs/phase_study
 uv run pytest
 ```
 
-La carpeta debe estar vacía. El piloto puede ejecutarse en otra ruta con `--max-subjects-per-cohort 2 --folds 2 --simulation-repetitions 1`. La comparación completa y sus límites se describen en [phase_validation_results.md](phase_validation_results.md).
+Use an empty output directory. An execution pilot can use a separate path with `--max-subjects-per-cohort 2 --folds 2 --simulation-repetitions 1`. The [results](phase_validation_results.md) report the complete comparison and its limitations.
 
-## 🔗 Referencias
+## 🔗 References
 
 [^dataset]: Voisard et al. (2025). A Dataset of Clinical Gait Signals with Wearable Sensors from Healthy, Neurological, and Orthopedic Cohorts. https://www.nature.com/articles/s41597-025-05959-w

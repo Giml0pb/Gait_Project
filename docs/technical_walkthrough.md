@@ -89,7 +89,7 @@ result = estimate_phase_ekf(observations, fs, 0.9, template)
 # result.variance_phase grows while correction is unavailable.
 ```
 
-The [mathematical note](phase_state_space.md) defines the transition, observation Jacobian, noise scaling and circular error. Its explanatory text is in Spanish. The EKF is an offline benchmark with recursive updates: full-record frequency initialization, normalization and filtering have not been converted into a streaming front end. Local covariance bands are approximate and have not been calibrated as confidence guarantees.
+The [mathematical note](phase_state_space.md) defines the transition, observation Jacobian, noise scaling and circular error. The EKF is an offline benchmark with recursive updates: full-record frequency initialization, normalization and filtering have not been converted into a streaming front end. Local covariance bands are approximate and have not been calibrated as confidence guarantees.
 
 ## Check the uncertainty
 
