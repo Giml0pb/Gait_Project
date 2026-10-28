@@ -26,7 +26,7 @@ F=\begin{bmatrix}
 \qquad w_k\sim\mathcal N(0,Q).
 $$
 
-The process covariance is $Q=\operatorname{diag}(0,(2\pi\,0.025)^2\Delta t,0.03^2\Delta t,0.03^2\Delta t)$. These are operational tracking settings; they were not tuned against held-out participant errors. There is no coupling term between feet or imposed antiphase constraint. Previous work has used EKFs for gait-state estimation; this prototype does not reproduce a particular published model.[^ekf]
+The process covariance is $Q=\mathrm{diag}(0,(2\pi\,0.025)^2\Delta t,0.03^2\Delta t,0.03^2\Delta t)$. These are operational tracking settings; they were not tuned against held-out participant errors. There is no coupling term between feet or imposed antiphase constraint. Previous work has used EKFs for gait-state estimation; this prototype does not reproduce a particular published model.[^ekf]
 
 ## 📈 Observation model
 
@@ -67,9 +67,9 @@ This assigns one cycle per stride and linear progression between heel strikes. D
 Relative phase is $\delta(t)=\phi_L(t)-\phi_R(t)$, with $L$ and $R$ denoting the feet. The dominant-band comparator additionally retains its historical right-foot shift of $\pi$. For $N$ shared scored samples, circular mean absolute error is
 
 $$
-\operatorname{MAE}_{\delta}
+\mathrm{MAE}_{\delta}
 =\frac{180}{\pi N}\sum_{k=1}^{N}
-\left|\operatorname{Arg}\left(\exp\{\mathrm{i}[\hat\delta_k-\delta_{\mathrm{ref},k}]\}\right)\right|.
+\left|\mathrm{Arg}\left(\exp\{\mathrm{i}[\hat\delta_k-\delta_{\mathrm{ref},k}]\}\right)\right|.
 $$
 
 Hilbert phase origins are calibrated using training templates. No rotation is fitted against held-out trial errors. Dataset metrics measure agreement with an event convention; synthetic metrics compare with known generative phase.
@@ -81,7 +81,7 @@ Before each available observation is corrected, the filter records innovation $\
 $$
 \nu_k=y_k-h(\hat x_k^-),\qquad
 S_k=H_kP_k^-H_k^\top+R,\qquad
-\operatorname{NIS}_k=\frac{\nu_k^2}{S_k}.
+\mathrm{NIS}_k=\frac{\nu_k^2}{S_k}.
 $$
 
 Here $\hat x_k^-$ and $P_k^-$ are predicted state and covariance. For scored synthetic samples, phase coverage is the fraction whose absolute circular error lies within $1.96\sqrt{P_{k,\phi\phi}}$, using posterior covariance. Bootstrap and missing-observation innovations remain undefined and never count as zero residuals.
