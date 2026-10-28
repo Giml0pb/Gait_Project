@@ -1,10 +1,10 @@
 # Experimental phase state-space model
 
-_Prototype formulation and interpretation limits — 28 October 2026_
+_Prototype formulation and interpretation limits_
 
 ---
 
-## ⚙️ State and dynamics
+## State and dynamics
 
 Each foot has an independent state. At sample $k$,
 
@@ -28,7 +28,7 @@ $$
 
 The process covariance is $Q=\mathrm{diag}(0,(2\pi\,0.025)^2\Delta t,0.03^2\Delta t,0.03^2\Delta t)$. These are operational tracking settings; they were not tuned against held-out participant errors. There is no coupling term between feet or imposed antiphase constraint. Previous work has used EKFs for gait-state estimation; this prototype does not reproduce a particular published model.[^ekf]
 
-## 📈 Observation model
+## Observation model
 
 Each gyroscope segment is divided by its 95th percentile of absolute amplitude. For normalized observation $y_k$,
 
@@ -54,7 +54,7 @@ The covariance uses the Joseph update. Missing observations skip correction whil
 
 Initialization reserves two nominal active-signal cycles, with a minimum of two seconds, to profile phase, amplitude and offset. The fitted state is placed at the final bootstrap timestamp; prediction and correction begin on the next sample. Reserved observations are never corrected a second time, and their output estimates remain undefined. Covariance at this boundary is a fixed operational assumption, not a posterior inferred from the bootstrap fit.
 
-## 📏 Reference and error
+## Reference and error
 
 For consecutive same-foot heel strikes $h_i$ and $h_{i+1}$, the temporal reference phase is
 
@@ -74,7 +74,7 @@ $$
 
 Hilbert phase origins are calibrated using training templates. No rotation is fitted against held-out trial errors. Dataset metrics measure agreement with an event convention; synthetic metrics compare with known generative phase.
 
-## 🧪 Uncertainty diagnostics
+## Uncertainty diagnostics
 
 Before each available observation is corrected, the filter records innovation $\nu_k$ and innovation variance $S_k$:
 
@@ -90,7 +90,7 @@ The demo compares fixed and changing waveforms over 20 seeds per condition, with
 
 Coverage of 95%, mean scalar NIS of 1 and uncorrelated innovations are ideal-model references, not guarantees or acceptance thresholds. The simulations do not exactly reproduce the filter's stochastic model, and timestamps within a run are dependent. Low NIS can coexist with biased phase when the filter absorbs waveform deformation into its state; known reference phase exposes that failure. These diagnostics do not calibrate the full four-state joint distribution or represent multiple phase branches.
 
-## ⚠️ Identifiability and limits
+## Identifiability and limits
 
 With even harmonics only, $g(\phi)=g(\phi+\pi)$. Observations cannot distinguish cycle positions separated by half a stride. A local Gaussian approximation can remain near one solution without representing the other, even with small covariance. The exported initialization-ambiguity flag identifies this concern without resolving it.
 
@@ -98,7 +98,7 @@ A fixed template can also be inappropriate for a participant or change within a 
 
 Initial frequency and normalization use the full observed signal, resampling is offline, and initialization profiles two nominal cycles. This is an experimental offline estimator with recursive updates. Its formulation and uncertainty need further validation before use as clinical indicators or a real-time controller.
 
-## 🔗 References
+## References
 
 [^ekf]: Medrano et al. (2023). Real-Time Gait Phase and Task Estimation for Controlling a Powered Ankle Exoskeleton on Extremely Uneven Terrain. https://pmc.ncbi.nlm.nih.gov/articles/PMC10249462/
 [^dataset]: Voisard et al. (2025). A Dataset of Clinical Gait Signals with Wearable Sensors from Healthy, Neurological, and Orthopedic Cohorts. https://www.nature.com/articles/s41597-025-05959-w

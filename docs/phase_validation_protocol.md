@@ -1,16 +1,16 @@
 # Exploratory gait-phase validation
 
-_Comparison protocol and scope — 28 October 2026_
+_Comparison protocol and scope_
 
 ---
 
-## 🎯 Question
+## Question
 
 How much does measured bilateral coordination depend on tracking the dominant spectral peak rather than the stride cycle? This study checks the meaning of the estimated variable and the behavior of three estimators. Differences between diagnostic groups are not taken as evidence of a physiological mechanism.
 
 The harmonic issue was identified while exploring this dataset. Participant separation prevents leakage when fitting templates, but does not turn a question developed on these data into a confirmatory hypothesis test.
 
-## 🔬 Design
+## Design
 
 The established spectral/Hilbert baseline and its outputs are preserved. The comparison runs through `scripts/validate_phase_model.py`, producing separate tables, figures and a manifest with seeds, settings, source hashes and input hashes.
 
@@ -33,7 +33,7 @@ Five seeded folds are stratified by pathology. All sessions and trials from one 
 
 Initial frequency and harmonic selection use the observed signal without consulting held-out trial events. Those events enter evaluation only. A regression test changes held-out annotations and verifies that the training template is unchanged.
 
-## ⚙️ Methods
+## Methods
 
 | Method | Definition |
 | --- | --- |
@@ -51,7 +51,7 @@ Initialization profiles a phase grid over two nominal active-signal cycles, with
 
 The [EKF formulation](phase_state_space.md) defines equations, units and identifiability limits.
 
-## 📏 References and metrics
+## References and metrics
 
 Consecutive same-foot heel strikes define one reference cycle with phase progressing linearly between them. The reference does not interpolate across turns or outside complete cycles. It is an event-based timing convention, not a unique biomechanical phase trajectory.
 
@@ -63,7 +63,7 @@ Primary metrics are selected-frequency/event-stride-frequency ratio and absolute
 
 No diagnostic-group p-values are used to claim clinical discrimination. Age, rhythm, sensor effects and diagnostic composition remain possible alternative explanations. Held-out errors are not used to force an EKF advantage.
 
-## 🧪 Simulations
+## Simulations
 
 Five scenarios—fixed asymmetry, changing waveform at fixed coordination, timing drift, frequency modulation and sensor dropout—are combined with four second-harmonic ratios (0.5, 1, 3, 6), two noise levels and five seeds per combination: 200 cases evaluated by three methods.
 
@@ -71,7 +71,7 @@ The study's simulated EKF receives the known initial generative template. This r
 
 An exact identifiability check verifies that even-only harmonics produce identical observations at phases separated by half a stride. Small covariance or accurate signal reconstruction does not remove that ambiguity. The EKF flags ambiguous initialization while retaining a unimodal approximation.
 
-## 🔁 Reproduction
+## Reproduction
 
 ```bash
 uv run python scripts/validate_phase_model.py --output-dir outputs/phase_study
@@ -80,6 +80,6 @@ uv run pytest
 
 Use an empty output directory. An execution pilot can use a separate path with `--max-subjects-per-cohort 2 --folds 2 --simulation-repetitions 1`. The [results](phase_validation_results.md) report the complete comparison and its limitations.
 
-## 🔗 References
+## References
 
 [^dataset]: Voisard et al. (2025). A Dataset of Clinical Gait Signals with Wearable Sensors from Healthy, Neurological, and Orthopedic Cohorts. https://www.nature.com/articles/s41597-025-05959-w

@@ -1,16 +1,16 @@
 # Exploratory phase-validation results
 
-_Complete run: 28 October 2026; study 0.2.0, package 0.3.1_
+_Study 0.2.0; package 0.3.1_
 
 ---
 
-## 📋 Main finding
+## Main finding
 
 The baseline's dominant spectral peak usually tracks a component near the second stride harmonic. Signal-only fundamental selection improves frequency agreement and heel-strike counting. The implemented harmonic EKF does not improve the primary relative-phase agreement metric over fundamental-band Hilbert. Its smaller timing error among matched events is secondary and does not automatically compensate for missed or extra events.
 
 Simulation also shows that waveform changes can produce apparent coordination changes while generative bilateral timing stays constant. This identifies a methodological vulnerability; it does not establish that real diagnostic-group differences are artifacts.
 
-## 🔬 Scope and checks
+## Scope and checks
 
 The study prepared and compared 1,356 trials from 260 participants using five participant-separated folds, keeping each person's sessions together. Templates used the other 208 participants in each fold. No processing exceptions occurred. Two trials from one healthy participant had less than one second of shared bilateral support after initialization: relative-phase distributions therefore contain 1,354 trials and 259 participants. Foot-level evaluation has 2,709 scored foot-trial observations per method out of 2,712 available; participant-level event summaries include all 260 people.
 
@@ -18,7 +18,7 @@ The complete test suite passes 67 tests. Checks cover formatting, lint, particip
 
 The [protocol](phase_validation_protocol.md) and [EKF formulation](phase_state_space.md) describe settings, units, masks, calibration and identifiability. Local outputs are under `outputs/phase_validation_v031/`; committed aggregate results and numerical figure data come from that run.
 
-## 📈 Frequency and cycle interpretation
+## Frequency and cycle interpretation
 
 Across 2,712 foot-trial observations, the median dominant-peak/event-stride-frequency ratio is **2.0117**. The median signal-selected-fundamental ratio is **0.9996**; 2,686 observations lie within ±10% of event-derived stride frequency. Two observations have weak fundamental support.
 
@@ -28,7 +28,7 @@ A previous interpretation of bilateral in-phase signals as evidence of mirrored 
 
 ![Frequency comparison with event-derived reference](assets/validation_frequency_reference.png)
 
-## 📏 Agreement with event references
+## Agreement with event references
 
 Relative-phase error uses identical scored samples for all three methods. Trial errors are averaged within each participant, then summarized across the 259 evaluable people. The table reports median and interquartile range, not a statistical superiority test.
 
@@ -54,7 +54,7 @@ The dominant comparator has small matched-event timing error but produces 38,028
 
 The EKF flags 12 ambiguous initializations. Frequency bounds are reached in 126 foot-trial observations, and amplitude bounds in 256. These count contacts at any point during recursive tracking, including transients; they are not counts of clinical failures.
 
-## 🧪 Known-phase simulation
+## Known-phase simulation
 
 The study evaluated 200 scenario/waveform/noise/seed combinations with all three methods. Its EKF receives the initial generative template, representing ideal calibration unavailable for every new participant. The table summarizes median relative-phase error in degrees, combining four harmonic ratios and two noise levels per scenario.
 
@@ -74,7 +74,7 @@ Dominant-band results are also retained. Combining first-harmonic-dominant and s
 
 The plot includes edge transients excluded from scoring. With even-only harmonics, the maximum difference between observations at a phase and that phase plus pi is 3.33 × 10⁻¹⁶: indistinguishable at numerical precision. That observation cannot uniquely identify the half-cycle branch.
 
-## ⚠️ Interpretation and limits
+## Interpretation and limits
 
 Dataset events come from automatic detectors.[^dataset] Continuous phase has not been validated against independent optical motion capture or force-platform measurements. Linear interpolation between heel strikes is a useful timing reference, not biomechanical ground truth throughout the cycle.
 
@@ -86,13 +86,13 @@ The [demo's uncertainty check](technical_walkthrough.md#check-the-uncertainty) s
 
 This study is exploratory, and the harmonic question arose on the same dataset. Folds control template fitting but do not remove that earlier question-selection step. No confirmatory conclusions are drawn about pathology, age, speed or neural control, and no physiological coupling strength is estimated.
 
-## 📍 Technical conclusion
+## Technical conclusion
 
 The signal-selected fundamental is the more defensible reference for stride cycles and heel strikes, while the dominant peak remains a distinct spectral measure. Its F1 improvement is descriptively clear; the central relative-phase improvement is small and varies across groups.
 
 This benchmark does not justify replacing the simpler phase reference with the EKF for bilateral-coordination analysis. It does provide a reproducible comparison, a working recursive estimator and explicit observation-model failures that can be examined technically.
 
-## 🔁 Artifacts and reproduction
+## Artifacts and reproduction
 
 Tables, four figures, summary and manifest are generated locally; source signals and participant-level results are not versioned. The processing-error table is empty, and insufficient-support cases are identified explicitly. Tests cover frequency recovery, harmonic ambiguity, gap prediction, separate initialization, uncertainty coverage, participant leakage and one-to-one event matching.
 
@@ -103,6 +103,6 @@ uv run pytest
 
 The [committed summary](../examples/phase_validation/summary.json) records aggregate numerical results. The [dataset guide](dataset_structure.md) describes the optional source data.
 
-## 🔗 References
+## References
 
 [^dataset]: Voisard et al. (2025). A Dataset of Clinical Gait Signals with Wearable Sensors from Healthy, Neurological, and Orthopedic Cohorts. https://www.nature.com/articles/s41597-025-05959-w
